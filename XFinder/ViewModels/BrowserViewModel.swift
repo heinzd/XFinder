@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import UniformTypeIdentifiers
 @preconcurrency import ImageCaptureCore
 @preconcurrency import QuickLookUI
 
@@ -96,6 +97,8 @@ private final class QuickLookController: NSObject, @preconcurrency QLPreviewPane
 
 @MainActor
 final class BrowserViewModel: ObservableObject {
+    static let internalDragTypeIdentifier = "com.heinzd.xfinder.internal-file-drag"
+
     @Published private(set) var currentURL: URL
     @Published private(set) var items: [FileItem] = []
     @Published private(set) var volumes: [SidebarLocation] = []
@@ -558,6 +561,56 @@ final class BrowserViewModel: ObservableObject {
             }
         }
         return true
+    }
+
+    func dragProvider(for item: FileItem) -> NSItemProvider {
+        let provider = NSItemProvider(contentsOf: item.url)
+            ?? NSItemProvider(object: item.url as NSURL)
+        provider.registerDataRepresentation(
+            forTypeIdentifier: Self.internalDragTypeIdentifier,
+            visibility: .ownProcess
+        ) { completion in
+            completion(Data([1]), nil)
+            return nil
+        }
+        return provider
+    }
+
+    @discardableResult
+    func copyExternalDroppedItems(
+        _ providers: [NSItemProvider],
+        to destination: URL
+    ) -> Bool {
+        guard !providers.contains(where: {
+            $0.hasItemConformingToTypeIdentifier(Self.internalDragTypeIdentifier)
+        }) else {
+            return false
+        }
+
+        let fileProviders = providers.filter {
+            $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
+        }
+        guard !fileProviders.isEmpty else { return false }
+
+        Task {
+            var urls: [URL] = []
+            for provider in fileProviders {
+                if let url = await droppedURL(from: provider) {
+                    urls.append(url)
+                }
+            }
+            _ = copyDroppedItems(urls, to: destination)
+        }
+        return true
+    }
+
+    private func droppedURL(from provider: NSItemProvider) async -> URL? {
+        await withCheckedContinuation { continuation in
+            provider.loadObject(ofClass: NSURL.self) { object, _ in
+                let url = (object as? NSURL).map { $0 as URL }
+                continuation.resume(returning: url)
+            }
+        }
     }
 
     func revealSelectionInFinder() {
