@@ -87,6 +87,13 @@ struct FileItem: Identifiable, Hashable, Sendable {
 
     var id: URL { url.standardizedFileURL }
     var canNavigateInto: Bool { isDirectory && !isPackage }
+    var sortableName: String { name.localizedLowercase }
+    var sortableModificationDate: Date { modificationDate ?? .distantPast }
+    var sortableSize: Int64 { isDirectory ? -1 : (size ?? -1) }
+    var sortableKind: String { (isDirectory ? "Folder" : kind).localizedLowercase }
+    var sortableLocation: String {
+        url.deletingLastPathComponent().path.localizedLowercase
+    }
 
     var formattedSize: String {
         guard !isDirectory, let size else { return "—" }
@@ -95,7 +102,7 @@ struct FileItem: Identifiable, Hashable, Sendable {
 
     var formattedModificationDate: String {
         guard let modificationDate else { return "—" }
-        return modificationDate.formatted(date: .abbreviated, time: .shortened)
+        return modificationDate.formatted(date: .numeric, time: .shortened)
     }
 }
 
