@@ -261,6 +261,23 @@ struct FileSystemService {
         return copiedURLs
     }
 
+    func moveItems(_ sourceURLs: [URL], to directory: URL) throws -> [URL] {
+        let destinationDirectory = directory.standardizedFileURL
+        let sources = topLevelUniqueURLs(sourceURLs)
+
+        for source in sources where !fileManager.fileExists(atPath: source.path) {
+            throw FileSystemError.itemNoLongerExists(source.lastPathComponent)
+        }
+
+        var movedURLs: [URL] = []
+        for source in sources {
+            let destination = availableCopyURL(for: source, in: destinationDirectory)
+            try fileManager.moveItem(at: source, to: destination)
+            movedURLs.append(destination)
+        }
+        return movedURLs
+    }
+
     private func matchesName(_ name: String, query: String) -> Bool {
         guard query.contains("*") || query.contains("?") else {
             return name.localizedCaseInsensitiveContains(query)
@@ -322,6 +339,23 @@ struct FileSystemService {
                 return candidate
             }
             copyNumber += 1
+        }
+    }
+
+    private func topLevelUniqueURLs(_ urls: [URL]) -> [URL] {
+        var seen = Set<URL>()
+        let uniqueURLs = urls
+            .map(\.standardizedFileURL)
+            .filter { seen.insert($0).inserted }
+
+        return uniqueURLs.filter { candidate in
+            !uniqueURLs.contains { possibleParent in
+                guard possibleParent != candidate else { return false }
+                let parentPrefix = possibleParent.path.hasSuffix("/")
+                    ? possibleParent.path
+                    : possibleParent.path + "/"
+                return candidate.path.hasPrefix(parentPrefix)
+            }
         }
     }
 
@@ -391,6 +425,7 @@ enum FileSystemError: LocalizedError {
     case itemAlreadyExists(String)
     case missingTemplate(String)
     case cannotCopyIntoItself(String)
+    case itemNoLongerExists(String)
 
     var errorDescription: String? {
         switch self {
@@ -402,6 +437,8 @@ enum FileSystemError: LocalizedError {
             return "The template for .\(pathExtension) files is missing."
         case .cannotCopyIntoItself(let name):
             return "“\(name)” cannot be copied into itself."
+        case .itemNoLongerExists(let name):
+            return "“\(name)” no longer exists. Reload the folder and try again."
         }
     }
 }
