@@ -27,7 +27,7 @@ struct ContentView: View {
         .searchable(
             text: $searchText,
             placement: .toolbar,
-            prompt: Text(model.text("Search This Folder"))
+            prompt: Text(model.text("Search or Pattern"))
         )
         .alert("XFinder", isPresented: errorPresented) {
             Button("OK", role: .cancel) {
@@ -35,6 +35,18 @@ struct ContentView: View {
             }
         } message: {
             Text(model.errorMessage ?? model.text("Unknown error"))
+        }
+        .alert(model.text("Run Script?"), isPresented: executionConfirmationPresented) {
+            Button(model.text("Cancel"), role: .cancel) {
+                model.cancelPendingExecution()
+            }
+            Button(model.text("Run"), role: .destructive) {
+                model.confirmPendingExecution()
+            }
+        } message: {
+            if let item = model.pendingExecutionItem {
+                Text(model.executionConfirmationMessage(for: item))
+            }
         }
         .sheet(item: $model.renameTarget) { item in
             RenameSheet(item: item)
@@ -68,6 +80,13 @@ struct ContentView: View {
         Binding(
             get: { model.errorMessage != nil },
             set: { if !$0 { model.errorMessage = nil } }
+        )
+    }
+
+    private var executionConfirmationPresented: Binding<Bool> {
+        Binding(
+            get: { model.pendingExecutionItem != nil },
+            set: { if !$0 { model.cancelPendingExecution() } }
         )
     }
 }
