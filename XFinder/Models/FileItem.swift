@@ -20,6 +20,9 @@ enum NewFileKind: String, CaseIterable, Identifiable, Sendable {
     case word
     case excel
     case powerpoint
+    case openDocumentText
+    case openDocumentSpreadsheet
+    case openDocumentPresentation
 
     var id: String { rawValue }
 
@@ -30,6 +33,9 @@ enum NewFileKind: String, CaseIterable, Identifiable, Sendable {
         case .word: "Word Document (.docx)"
         case .excel: "Excel Workbook (.xlsx)"
         case .powerpoint: "PowerPoint Presentation (.pptx)"
+        case .openDocumentText: "OpenDocument Text (.odt)"
+        case .openDocumentSpreadsheet: "OpenDocument Spreadsheet (.ods)"
+        case .openDocumentPresentation: "OpenDocument Presentation (.odp)"
         }
     }
 
@@ -40,6 +46,9 @@ enum NewFileKind: String, CaseIterable, Identifiable, Sendable {
         case .word: "New Word Document"
         case .excel: "New Excel Workbook"
         case .powerpoint: "New PowerPoint Presentation"
+        case .openDocumentText: "New OpenDocument Text"
+        case .openDocumentSpreadsheet: "New OpenDocument Spreadsheet"
+        case .openDocumentPresentation: "New OpenDocument Presentation"
         }
     }
 
@@ -50,6 +59,18 @@ enum NewFileKind: String, CaseIterable, Identifiable, Sendable {
         case .word: "docx"
         case .excel: "xlsx"
         case .powerpoint: "pptx"
+        case .openDocumentText: "odt"
+        case .openDocumentSpreadsheet: "ods"
+        case .openDocumentPresentation: "odp"
+        }
+    }
+
+    var isOpenDocument: Bool {
+        switch self {
+        case .openDocumentText, .openDocumentSpreadsheet, .openDocumentPresentation:
+            true
+        default:
+            false
         }
     }
 }
