@@ -247,6 +247,10 @@ struct FileSystemService {
 
         for sourceURL in sourceURLs {
             let source = sourceURL.standardizedFileURL
+            let sourceDirectory = source.deletingLastPathComponent().resolvingSymlinksInPath()
+            if sourceDirectory == destinationDirectory.resolvingSymlinksInPath() {
+                continue
+            }
             let sourcePrefix = source.path.hasSuffix("/") ? source.path : source.path + "/"
             guard destinationDirectory.path != source.path,
                   !destinationDirectory.path.hasPrefix(sourcePrefix) else {
