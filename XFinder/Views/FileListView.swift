@@ -8,7 +8,7 @@ struct FileListView: View {
 
     var body: some View {
         Table(
-            sortedItems,
+            of: FileItem.self,
             selection: $model.selectedItemIDs,
             sortOrder: $sortOrder
         ) {
@@ -52,6 +52,11 @@ struct FileListView: View {
                         .foregroundStyle(.secondary)
                 }
                 .width(min: 120, ideal: 220)
+            }
+        } rows: {
+            ForEach(sortedItems) { item in
+                TableRow(item)
+                    .draggable(item.url)
             }
         }
         .font(.body)
@@ -133,7 +138,6 @@ struct FileListView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
         }
-        .draggable(item.url)
 
         if item.canNavigateInto {
             cell.dropDestination(for: URL.self) { urls, _ in
