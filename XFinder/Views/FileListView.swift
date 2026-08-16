@@ -3,30 +3,30 @@ import SwiftUI
 
 struct FileListView: View {
     @EnvironmentObject private var model: BrowserViewModel
+    @State private var sortOrder = [KeyPathComparator(\FileItem.sortableName)]
     let searchText: String
 
     var body: some View {
-        Table(model.displayedItems(matching: searchText), selection: $model.selectedItemIDs) {
-            TableColumn(model.text("Name")) { item in
-                HStack(spacing: 4) {
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 13, height: 13)
-                    Text(item.name)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
+        Table(
+            sortedItems,
+            selection: $model.selectedItemIDs,
+            sortOrder: $sortOrder
+        ) {
+            TableColumn(model.text("Name"), value: \FileItem.sortableName) { item in
+                fileNameCell(for: item)
             }
             .width(min: 220, ideal: 380)
 
-            TableColumn(model.text("Date Modified")) { item in
+            TableColumn(
+                model.text("Date Modified"),
+                value: \FileItem.sortableModificationDate
+            ) { item in
                 Text(item.formattedModificationDate)
                     .foregroundStyle(.secondary)
             }
             .width(min: 135, ideal: 170, max: 220)
 
-            TableColumn(model.text("Size")) { item in
+            TableColumn(model.text("Size"), value: \FileItem.sortableSize) { item in
                 Text(item.formattedSize)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -34,7 +34,7 @@ struct FileListView: View {
             }
             .width(min: 70, ideal: 90, max: 120)
 
-            TableColumn(model.text("Kind")) { item in
+            TableColumn(model.text("Kind"), value: \FileItem.sortableKind) { item in
                 Text(item.isDirectory ? model.text("Folder") : item.kind)
                     .lineLimit(1)
                     .foregroundStyle(.secondary)
@@ -42,7 +42,10 @@ struct FileListView: View {
             .width(min: 100, ideal: 180)
 
             if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                TableColumn(model.text("Location")) { item in
+                TableColumn(
+                    model.text("Location"),
+                    value: \FileItem.sortableLocation
+                ) { item in
                     Text(model.relativeLocation(for: item))
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -55,6 +58,9 @@ struct FileListView: View {
         .controlSize(.mini)
         .environment(\.defaultMinListRowHeight, 14)
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .dropDestination(for: URL.self) { urls, _ in
+            model.copyDroppedItems(urls, to: model.currentURL)
+        }
         .contextMenu(forSelectionType: FileItem.ID.self) { selection in
             Menu(model.text("New File")) {
                 ForEach(model.standardNewFileKinds) { kind in
@@ -106,6 +112,39 @@ struct FileListView: View {
             openFirst(in: selection)
         }
         .onDeleteCommand(perform: model.moveSelectionToTrash)
+    }
+
+    private var sortedItems: [FileItem] {
+        model.displayedItems(matching: searchText).sorted(using: sortOrder)
+    }
+
+    @ViewBuilder
+    private func fileNameCell(for item: FileItem) -> some View {
+        let cell = HStack(spacing: 4) {
+            Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
+                .resizable()
+                .scaledToFit()
+                .frame(width: 13, height: 13)
+            Text(item.name)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .contentShape(Rectangle())
+        .onDrag {
+            if !model.selectedItemIDs.contains(item.id) {
+                model.selectedItemIDs = [item.id]
+            }
+            return NSItemProvider(contentsOf: item.url)
+                ?? NSItemProvider(object: item.url as NSURL)
+        }
+
+        if item.canNavigateInto {
+            cell.dropDestination(for: URL.self) { urls, _ in
+                model.copyDroppedItems(urls, to: item.url)
+            }
+        } else {
+            cell
+        }
     }
 
     private func openFirst(in selection: Set<FileItem.ID>) {
