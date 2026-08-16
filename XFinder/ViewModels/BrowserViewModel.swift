@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 @preconcurrency import ImageCaptureCore
+@preconcurrency import QuickLookUI
 
 private struct ConnectedMediaDevice: Identifiable, Equatable, Sendable {
     let id: String
@@ -68,6 +69,32 @@ private final class ConnectedDeviceMonitor: NSObject, @preconcurrency ICDeviceBr
 }
 
 @MainActor
+private final class QuickLookController: NSObject, @preconcurrency QLPreviewPanelDataSource {
+    private var previewURLs: [URL] = []
+
+    func show(_ urls: [URL]) {
+        guard !urls.isEmpty, let panel = QLPreviewPanel.shared() else { return }
+        previewURLs = urls
+        panel.dataSource = self
+        panel.currentPreviewItemIndex = 0
+        panel.reloadData()
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int {
+        previewURLs.count
+    }
+
+    func previewPanel(
+        _ panel: QLPreviewPanel!,
+        previewItemAt index: Int
+    ) -> QLPreviewItem! {
+        guard previewURLs.indices.contains(index) else { return nil }
+        return previewURLs[index] as NSURL
+    }
+}
+
+@MainActor
 final class BrowserViewModel: ObservableObject {
     @Published private(set) var currentURL: URL
     @Published private(set) var items: [FileItem] = []
@@ -77,6 +104,7 @@ final class BrowserViewModel: ObservableObject {
     @Published private(set) var isSearching = false
     @Published private(set) var activeSearchQuery = ""
     @Published private(set) var customFavoriteURLs: [URL] = []
+    @Published private(set) var openDocumentSuiteNames: [String] = []
     @Published private var connectedDevices: [ConnectedMediaDevice] = []
     @Published var selectedItemIDs: Set<FileItem.ID> = []
     @Published var errorMessage: String?
@@ -100,6 +128,7 @@ final class BrowserViewModel: ObservableObject {
     private var historyIndex = 0
     private var searchTask: Task<Void, Never>?
     private var deviceMonitor: ConnectedDeviceMonitor?
+    private let quickLookController = QuickLookController()
     private static let hiddenFilesKey = "showHiddenFiles"
     private static let languageKey = "appLanguage"
     private static let customFavoritesKey = "customFavoritePaths"
@@ -218,6 +247,20 @@ final class BrowserViewModel: ObservableObject {
 
     var canGoBack: Bool { historyIndex > 0 }
     var canGoForward: Bool { historyIndex + 1 < history.count }
+    var canPreviewSelection: Bool { selectedItems.contains { !$0.isDirectory } }
+
+    var standardNewFileKinds: [NewFileKind] {
+        NewFileKind.allCases.filter { !$0.isOpenDocument }
+    }
+
+    var openDocumentNewFileKinds: [NewFileKind] {
+        guard !openDocumentSuiteNames.isEmpty else { return [] }
+        return NewFileKind.allCases.filter(\.isOpenDocument)
+    }
+
+    var openDocumentMenuTitle: String {
+        openDocumentSuiteNames.joined(separator: " / ")
+    }
 
     func displayedItems(matching query: String) -> [FileItem] {
         let cleanQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -316,6 +359,7 @@ final class BrowserViewModel: ObservableObject {
             items = try fileSystem.contents(of: currentURL, showHiddenFiles: showHiddenFiles)
             volumes = fileSystem.mountedVolumes()
             finderFavoriteURLs = fileSystem.finderFavoriteURLs()
+            openDocumentSuiteNames = Self.installedOpenDocumentSuites()
             let availableIDs = Set(items.map(\.id))
             if activeSearchQuery.isEmpty {
                 selectedItemIDs.formIntersection(availableIDs)
@@ -481,6 +525,18 @@ final class BrowserViewModel: ObservableObject {
         NSWorkspace.shared.activateFileViewerSelecting(urls)
     }
 
+    func previewSelection() {
+        let urls = selectedItems
+            .filter { !$0.isDirectory }
+            .map(\.url)
+        quickLookController.show(urls)
+    }
+
+    func preview(_ selection: Set<FileItem.ID>) {
+        selectedItemIDs = selection
+        previewSelection()
+    }
+
     func revealCurrentFolderInFinder() {
         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: currentURL.path)
     }
@@ -515,6 +571,45 @@ final class BrowserViewModel: ObservableObject {
             return
         }
         NSWorkspace.shared.open(applicationURL)
+    }
+
+    private static func installedOpenDocumentSuites() -> [String] {
+        let fileManager = FileManager.default
+        let homeApplications = URL.homeDirectory
+            .appendingPathComponent("Applications", isDirectory: true)
+
+        func isInstalled(bundleIdentifier: String, applicationName: String) -> Bool {
+            if NSWorkspace.shared.urlForApplication(
+                withBundleIdentifier: bundleIdentifier
+            ) != nil {
+                return true
+            }
+            return [
+                URL(fileURLWithPath: "/Applications", isDirectory: true),
+                homeApplications
+            ].contains { applicationsURL in
+                fileManager.fileExists(
+                    atPath: applicationsURL
+                        .appendingPathComponent(applicationName, isDirectory: true)
+                        .path
+                )
+            }
+        }
+
+        var suites: [String] = []
+        if isInstalled(
+            bundleIdentifier: "org.libreoffice.script",
+            applicationName: "LibreOffice.app"
+        ) {
+            suites.append("LibreOffice")
+        }
+        if isInstalled(
+            bundleIdentifier: "org.openoffice.script",
+            applicationName: "OpenOffice.app"
+        ) {
+            suites.append("OpenOffice")
+        }
+        return suites
     }
 
     private func resetSearch() {
@@ -591,11 +686,17 @@ final class BrowserViewModel: ObservableObject {
         "Word Document (.docx)": "Word-Dokument (.docx)",
         "Excel Workbook (.xlsx)": "Excel-Arbeitsmappe (.xlsx)",
         "PowerPoint Presentation (.pptx)": "PowerPoint-Präsentation (.pptx)",
+        "OpenDocument Text (.odt)": "OpenDocument-Text (.odt)",
+        "OpenDocument Spreadsheet (.ods)": "OpenDocument-Tabelle (.ods)",
+        "OpenDocument Presentation (.odp)": "OpenDocument-Präsentation (.odp)",
         "New Text Document": "Neues Textdokument",
         "New Rich Text Document": "Neues Rich-Text-Dokument",
         "New Word Document": "Neues Word-Dokument",
         "New Excel Workbook": "Neue Excel-Arbeitsmappe",
         "New PowerPoint Presentation": "Neue PowerPoint-Präsentation",
+        "New OpenDocument Text": "Neuer OpenDocument-Text",
+        "New OpenDocument Spreadsheet": "Neue OpenDocument-Tabelle",
+        "New OpenDocument Presentation": "Neue OpenDocument-Präsentation",
         "Rename…": "Umbenennen …",
         "Rename": "Umbenennen",
         "Cancel": "Abbrechen",
@@ -630,6 +731,7 @@ final class BrowserViewModel: ObservableObject {
         "Open Current Folder in Terminal": "Aktuellen Ordner im Terminal öffnen",
         "Add to Favorites": "Zu Favoriten hinzufügen",
         "Open": "Öffnen",
+        "Quick Look": "Vorschau",
         "Show in Finder": "Im Finder zeigen",
         "In Finder": "Im Finder",
         "Open the current folder in the original Finder": "Aktuellen Ordner im originalen Finder öffnen",
