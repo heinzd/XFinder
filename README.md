@@ -8,15 +8,17 @@ XFinder is a native file manager for macOS with a custom SwiftUI interface.
 - Native macOS window toolbar with navigation, file actions, and search
 - Sidebar with standard, imported Finder, and clearly separated XFinder favorites
 - Add selected folders to XFinder favorites from the context menu
-- Locations for AirDrop, iCloud Drive, Trash, external drives, and network volumes
+- Locations for AirDrop, iCloud Drive, Trash, connected iPhones/media devices,
+  external drives, and network volumes
 - Internal and virtual system volumes are excluded from the sidebar
 - Compact multi-column file list with Finder-style multiple selection
 - Standard macOS text size with reduced row spacing
-- Open files with their default applications
+- Open files with their default applications; Unix scripts require confirmation
 - Create folders, rename items, and move items to Trash
 - Create text, rich-text, Word, Excel, and PowerPoint documents from the context menu
 - Optionally show hidden files
-- Recursive name search through all subfolders
+- Recursive name search through all subfolders, including wildcard patterns such
+  as `test.*`, `*.txt`, and `report-?.pdf`
 - Search-result location column
 - Standard and persistent custom favorites
 - Open the current path in the original Finder
@@ -57,6 +59,11 @@ request permission for protected locations.
 
 Importing custom favorites from the original Finder also reads the user's local
 Shared File List and may therefore require Full Disk Access.
+
+Connected iPhones and other local media devices are detected through Apple's
+Image Capture interface. The device must be unlocked and trusted. Since iOS
+devices are not mounted as normal file-system volumes, selecting one opens Image
+Capture for the media Apple exposes publicly.
 
 Use `XFinder > Configure Full Disk Access…` to grant permission once. The
 `XFinder > Show XFinder App in Finder` command locates the application launched
