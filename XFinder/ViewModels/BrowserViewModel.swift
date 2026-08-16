@@ -41,8 +41,8 @@ private final class ConnectedDeviceMonitor: NSObject, @preconcurrency ICDeviceBr
     ) {
         let fallbackID = String(ObjectIdentifier(device).hashValue)
         let identifier = (device.uuidString as String?) ?? fallbackID
-        let detectedName = (device.name as String?)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let rawName = device.name as String?
+        let detectedName = rawName?.trimmingCharacters(in: .whitespacesAndNewlines)
         let name = detectedName.flatMap { $0.isEmpty ? nil : $0 }
             ?? "Connected Device"
         devices[ObjectIdentifier(device)] = ConnectedMediaDevice(id: identifier, name: name)
