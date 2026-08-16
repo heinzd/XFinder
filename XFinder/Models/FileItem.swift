@@ -43,6 +43,7 @@ struct SidebarLocation: Identifiable, Hashable, Sendable {
     let systemImage: String
     let url: URL
     var isCustom = false
+    var opensExternally = false
 
     var id: URL { url.standardizedFileURL }
 }

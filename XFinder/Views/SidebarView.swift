@@ -12,7 +12,7 @@ struct SidebarView: View {
             }
 
             Section(model.text("Locations")) {
-                ForEach(model.volumes) { location in
+                ForEach(model.locations) { location in
                     SidebarRow(location: location)
                 }
             }
@@ -49,7 +49,7 @@ private struct SidebarRow: View {
 
     var body: some View {
         Button {
-            model.navigate(to: location.url)
+            model.open(location)
         } label: {
             Label(location.title, systemImage: location.systemImage)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -57,7 +57,7 @@ private struct SidebarRow: View {
         }
         .buttonStyle(.plain)
         .listRowBackground(
-            model.currentURL.standardizedFileURL == location.url.standardizedFileURL
+            isCurrentLocation
                 ? Color.accentColor.opacity(0.18)
                 : Color.clear
         )
@@ -68,5 +68,10 @@ private struct SidebarRow: View {
                 }
             }
         }
+    }
+
+    private var isCurrentLocation: Bool {
+        !location.opensExternally
+            && model.currentURL.standardizedFileURL == location.url.standardizedFileURL
     }
 }

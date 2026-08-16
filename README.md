@@ -1,36 +1,56 @@
 # XFinder
 
-XFinder ist ein nativer Dateimanager für macOS mit eigener SwiftUI-Oberfläche.
+XFinder is a native file manager for macOS with a custom SwiftUI interface.
 
-## Stand 0.4
+## Current version: 0.4
 
-- Navigation durch Ordner, inklusive Zurück, Vor und übergeordnetem Ordner
-- Seitenleiste mit Favoriten und eingehängten Laufwerken
-- kompakte, mehrspaltige Dateiliste mit Mehrfachauswahl wie im Finder
-- halbierte vertikale Abstände in der Dateiliste
-- Öffnen von Dateien mit der Standard-App
-- Neuer Ordner, Umbenennen und Verschieben in den Papierkorb
-- Ein-/Ausblenden versteckter Dateien
-- Suche im aktuell geöffneten Ordner
-- rekursive Namenssuche in allen Unterordnern mit Abbruch bei neuer Eingabe
-- zusätzlicher Fundort in der Ergebnisliste
-- erweiterte Standardfavoriten und dauerhaft speicherbare eigene Favoriten
-- Erkennung lokaler, USB- und eingebundener Netzlaufwerke
-- Schaltfläche zum Öffnen des aktuellen Pfads im originalen Finder
-- vollständiges macOS-App-Icon
-- eigener Einstellungsdialog (`⌘,`)
-- Englisch als Standardsprache, zur Laufzeit auf Deutsch umschaltbar
-- versteckte Dateien dauerhaft ein- oder ausblendbar
+- Folder navigation with Back, Forward, and Enclosing Folder actions
+- Native macOS window toolbar with navigation, file actions, and search
+- Sidebar with favorites, AirDrop, iCloud Drive, Trash, and mounted volumes
+- Detection of local, USB, and mounted network drives
+- Compact multi-column file list with Finder-style multiple selection
+- Standard macOS text size with reduced row spacing
+- Open files with their default applications
+- Create folders, rename items, and move items to Trash
+- Optionally show hidden files
+- Recursive name search through all subfolders
+- Search-result location column
+- Standard and persistent custom favorites
+- Open the current path in the original Finder
+- Complete macOS application icon
+- Dedicated Settings dialog (`⌘,`)
+- English as the default language, with German available at runtime
 
-## Start
+## Requirements
 
-1. `XFinder.xcodeproj` in Xcode öffnen.
-2. Als Ziel `My Mac` auswählen.
-3. Mit `⌘R` starten.
+- macOS 15 or later
+- Xcode 26 or later
 
-Die App ist absichtlich nicht sandboxed, damit sie wie ein Dateimanager auf die
-vom Benutzer erreichbaren Ordner zugreifen kann. macOS kann für geschützte
-Bereiche trotzdem eine Freigabe unter „Datenschutz & Sicherheit“ verlangen.
-Über `XFinder > Vollzugriff auf Festplatte konfigurieren …` lässt sich einmalig
-Vollzugriff erteilen; `XFinder > XFinder-App im Finder zeigen` findet dafür die
-aus Xcode gestartete App. Nach dem Aktivieren XFinder einmal neu starten.
+## Build and run
+
+1. Clone the repository.
+2. Open `XFinder.xcodeproj` in Xcode.
+3. Select `My Mac` as the run destination.
+4. Run with `⌘R`.
+
+To update an existing clone:
+
+```bash
+cd ~/Developer/XFinder
+git pull
+```
+
+## File-system access
+
+XFinder intentionally does not use the App Sandbox so that it can work like a
+file manager and access folders available to the current user. macOS may still
+request permission for protected locations.
+
+Use `XFinder > Configure Full Disk Access…` to grant permission once. The
+`XFinder > Show XFinder App in Finder` command locates the application launched
+from Xcode. Restart XFinder after changing Full Disk Access.
+
+## Deutsch
+
+XFinder ist ein nativer macOS-Dateimanager. Englisch ist die primäre Sprache;
+Deutsch kann jederzeit in den Einstellungen ausgewählt werden.

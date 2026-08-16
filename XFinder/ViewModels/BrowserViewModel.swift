@@ -60,21 +60,51 @@ final class BrowserViewModel: ObservableObject {
             SidebarLocation(title: text("Applications"), systemImage: "square.grid.2x2", url: URL(fileURLWithPath: "/Applications", isDirectory: true))
         ]
 
-        let iCloudURL = home.appendingPathComponent(
-            "Library/Mobile Documents/com~apple~CloudDocs",
-            isDirectory: true
-        )
-        if FileManager.default.fileExists(atPath: iCloudURL.path) {
-            locations.append(
-                SidebarLocation(title: text("iCloud Drive"), systemImage: "icloud", url: iCloudURL)
-            )
-        }
-
         let standardPaths = Set(locations.map { $0.url.standardizedFileURL.path })
         locations.append(contentsOf: customFavorites.filter {
             !standardPaths.contains($0.url.standardizedFileURL.path)
         })
         return locations
+    }
+
+    var locations: [SidebarLocation] {
+        let home = URL.homeDirectory
+        var locations: [SidebarLocation] = []
+
+        if let airDropURL = URL(string: "airdrop://") {
+            locations.append(
+                SidebarLocation(
+                    title: "AirDrop",
+                    systemImage: "airdrop",
+                    url: airDropURL,
+                    opensExternally: true
+                )
+            )
+        }
+
+        locations.append(
+            SidebarLocation(
+                title: text("iCloud Drive"),
+                systemImage: "icloud",
+                url: home.appendingPathComponent(
+                    "Library/Mobile Documents/com~apple~CloudDocs",
+                    isDirectory: true
+                )
+            )
+        )
+
+        locations.append(
+            SidebarLocation(
+                title: text("Trash"),
+                systemImage: "trash",
+                url: home.appendingPathComponent(".Trash", isDirectory: true)
+            )
+        )
+
+        locations.append(contentsOf: volumes)
+
+        var seen = Set<URL>()
+        return locations.filter { seen.insert($0.id).inserted }
     }
 
     var customFavorites: [SidebarLocation] {
@@ -230,6 +260,14 @@ final class BrowserViewModel: ObservableObject {
             navigate(to: item.url)
         } else {
             NSWorkspace.shared.open(item.url)
+        }
+    }
+
+    func open(_ location: SidebarLocation) {
+        if location.opensExternally {
+            NSWorkspace.shared.open(location.url)
+        } else {
+            navigate(to: location.url)
         }
     }
 
@@ -403,6 +441,7 @@ final class BrowserViewModel: ObservableObject {
         "Music": "Musik",
         "Movies": "Filme",
         "iCloud Drive": "iCloud Drive",
+        "Trash": "Papierkorb",
         "Add Current Folder to Favorites": "Aktuellen Ordner zu Favoriten hinzufügen",
         "Remove from Favorites": "Aus Favoriten entfernen",
         "Custom Favorites": "Eigene Favoriten",

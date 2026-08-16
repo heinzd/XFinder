@@ -81,7 +81,8 @@ struct FileSystemService {
             .volumeIsLocalKey,
             .volumeIsInternalKey,
             .volumeIsRemovableKey,
-            .volumeIsEjectableKey
+            .volumeIsEjectableKey,
+            .isDirectoryKey
         ]
         var urls = fileManager.mountedVolumeURLs(
             includingResourceValuesForKeys: Array(keys),
@@ -103,6 +104,7 @@ struct FileSystemService {
             let standardizedURL = url.standardizedFileURL
             guard seenPaths.insert(standardizedURL.path).inserted else { return nil }
             let values = try? standardizedURL.resourceValues(forKeys: keys)
+            guard values?.isDirectory == true else { return nil }
             let systemImage: String
             if values?.volumeIsLocal == false {
                 systemImage = "network"
