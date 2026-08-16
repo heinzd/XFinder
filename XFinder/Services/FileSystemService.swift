@@ -85,9 +85,6 @@ struct FileSystemService {
         if scriptExtensions.contains(item.url.pathExtension.lowercased()) {
             return true
         }
-        if fileManager.isExecutableFile(atPath: item.url.path) {
-            return true
-        }
 
         guard let handle = try? FileHandle(forReadingFrom: item.url) else { return false }
         defer { try? handle.close() }
@@ -244,6 +241,26 @@ struct FileSystemService {
         try fileManager.trashItem(at: item.url, resultingItemURL: &resultingURL)
     }
 
+    func copyItems(_ sourceURLs: [URL], to directory: URL) throws -> [URL] {
+        let destinationDirectory = directory.standardizedFileURL
+        var copiedURLs: [URL] = []
+
+        for sourceURL in sourceURLs {
+            let source = sourceURL.standardizedFileURL
+            let sourcePrefix = source.path.hasSuffix("/") ? source.path : source.path + "/"
+            guard destinationDirectory.path != source.path,
+                  !destinationDirectory.path.hasPrefix(sourcePrefix) else {
+                throw FileSystemError.cannotCopyIntoItself(source.lastPathComponent)
+            }
+
+            let destination = availableCopyURL(for: source, in: destinationDirectory)
+            try fileManager.copyItem(at: source, to: destination)
+            copiedURLs.append(destination)
+        }
+
+        return copiedURLs
+    }
+
     private func matchesName(_ name: String, query: String) -> Bool {
         guard query.contains("*") || query.contains("?") else {
             return name.localizedCaseInsensitiveContains(query)
@@ -279,6 +296,33 @@ struct FileSystemService {
         }
 
         return previous[nameCharacters.count]
+    }
+
+    private func availableCopyURL(for source: URL, in directory: URL) -> URL {
+        let initialDestination = directory.appendingPathComponent(source.lastPathComponent)
+        guard fileManager.fileExists(atPath: initialDestination.path) else {
+            return initialDestination
+        }
+
+        let values = try? source.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey])
+        let preservesExtension = values?.isDirectory != true || values?.isPackage == true
+        let pathExtension = preservesExtension ? source.pathExtension : ""
+        let baseName = pathExtension.isEmpty
+            ? source.lastPathComponent
+            : source.deletingPathExtension().lastPathComponent
+        var copyNumber = 1
+
+        while true {
+            let suffix = copyNumber == 1 ? " copy" : " copy \(copyNumber)"
+            var candidate = directory.appendingPathComponent(baseName + suffix)
+            if !pathExtension.isEmpty {
+                candidate.appendPathExtension(pathExtension)
+            }
+            if !fileManager.fileExists(atPath: candidate.path) {
+                return candidate
+            }
+            copyNumber += 1
+        }
     }
 
     private func collectFileURLs(from value: Any, into results: inout [URL]) {
@@ -346,6 +390,7 @@ enum FileSystemError: LocalizedError {
     case invalidName
     case itemAlreadyExists(String)
     case missingTemplate(String)
+    case cannotCopyIntoItself(String)
 
     var errorDescription: String? {
         switch self {
@@ -355,6 +400,8 @@ enum FileSystemError: LocalizedError {
             return "An item named “\(name)” already exists."
         case .missingTemplate(let pathExtension):
             return "The template for .\(pathExtension) files is missing."
+        case .cannotCopyIntoItself(let name):
+            return "“\(name)” cannot be copied into itself."
         }
     }
 }
