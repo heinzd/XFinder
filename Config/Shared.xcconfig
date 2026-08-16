@@ -1,0 +1,3 @@
+// Machine-specific signing values belong in Local.xcconfig.
+// The optional include keeps a fresh clone readable before local setup.
+#include? "Local.xcconfig"

@@ -29,9 +29,16 @@ XFinder is a native file manager for macOS with a custom SwiftUI interface.
 ## Build and run
 
 1. Clone the repository.
-2. Open `XFinder.xcodeproj` in Xcode.
-3. Select `My Mac` as the run destination.
-4. Run with `⌘R`.
+2. Copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig`.
+3. Replace `YOUR_TEAM_ID` in the local file with your Apple Developer Team ID.
+4. Open `XFinder.xcodeproj` in Xcode.
+5. Select `My Mac` as the run destination.
+6. Run with `⌘R`.
+
+`Config/Local.xcconfig` is ignored by Git. Personal signing-team changes therefore
+stay on the development Mac and are never committed to the repository. Keep the
+shared `project.pbxproj` under version control because it defines the targets,
+source files, and common build settings.
 
 To update an existing clone:
 
