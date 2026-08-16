@@ -15,6 +15,8 @@ XFinder is a native file manager for macOS with a custom SwiftUI interface.
 - Sortable Name, Date Modified, Size, Kind, and search-location columns
 - Drag files from XFinder to Finder folders or other applications, and copy files
   from Finder into the current XFinder folder or a displayed subfolder
+- Create a new folder from the current multi-selection and move the selected items
+  into it from the context menu
 - Native Quick Look preview for one or multiple selected files (`Space`)
 - Standard macOS text size with reduced row spacing
 - Open files with their default applications; recognized Unix scripts require
