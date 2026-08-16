@@ -126,6 +126,12 @@ private struct BrowserToolbar: ToolbarContent {
             }
             .help(model.text("Reload"))
 
+            Button(action: model.previewSelection) {
+                Image(systemName: "eye")
+            }
+            .disabled(!model.canPreviewSelection)
+            .help(model.text("Quick Look"))
+
             Button(action: model.revealCurrentFolderInFinder) {
                 Image(systemName: "arrow.up.forward.app")
             }
