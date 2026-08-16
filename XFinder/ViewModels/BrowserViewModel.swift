@@ -49,7 +49,7 @@ final class BrowserViewModel: ObservableObject {
 
     var favorites: [SidebarLocation] {
         let home = URL.homeDirectory
-        var locations = [
+        return [
             SidebarLocation(title: text("Home"), systemImage: "house", url: home),
             SidebarLocation(title: text("Desktop"), systemImage: "menubar.dock.rectangle", url: home.appendingPathComponent("Desktop", isDirectory: true)),
             SidebarLocation(title: text("Documents"), systemImage: "doc", url: home.appendingPathComponent("Documents", isDirectory: true)),
@@ -59,12 +59,6 @@ final class BrowserViewModel: ObservableObject {
             SidebarLocation(title: text("Movies"), systemImage: "film", url: home.appendingPathComponent("Movies", isDirectory: true)),
             SidebarLocation(title: text("Applications"), systemImage: "square.grid.2x2", url: URL(fileURLWithPath: "/Applications", isDirectory: true))
         ]
-
-        let standardPaths = Set(locations.map { $0.url.standardizedFileURL.path })
-        locations.append(contentsOf: customFavorites.filter {
-            !standardPaths.contains($0.url.standardizedFileURL.path)
-        })
-        return locations
     }
 
     var locations: [SidebarLocation] {
@@ -201,7 +195,8 @@ final class BrowserViewModel: ObservableObject {
 
     func addCurrentFolderToFavorites() {
         let url = currentURL.standardizedFileURL
-        guard !favorites.contains(where: { $0.url.standardizedFileURL == url }) else { return }
+        guard !favorites.contains(where: { $0.url.standardizedFileURL == url }),
+              !customFavoriteURLs.contains(where: { $0.standardizedFileURL == url }) else { return }
         customFavoriteURLs.append(url)
         persistCustomFavorites()
     }

@@ -11,6 +11,14 @@ struct SidebarView: View {
                 }
             }
 
+            if !model.customFavorites.isEmpty {
+                Section(model.text("Custom Favorites")) {
+                    ForEach(model.customFavorites) { location in
+                        SidebarRow(location: location)
+                    }
+                }
+            }
+
             Section(model.text("Locations")) {
                 ForEach(model.locations) { location in
                     SidebarRow(location: location)

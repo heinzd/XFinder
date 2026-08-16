@@ -6,8 +6,8 @@ XFinder is a native file manager for macOS with a custom SwiftUI interface.
 
 - Folder navigation with Back, Forward, and Enclosing Folder actions
 - Native macOS window toolbar with navigation, file actions, and search
-- Sidebar with favorites, AirDrop, iCloud Drive, Trash, and mounted volumes
-- Detection of local, USB, and mounted network drives
+- Sidebar with standard and clearly separated custom favorites
+- Locations for AirDrop, iCloud Drive, Trash, USB drives, and network volumes
 - Compact multi-column file list with Finder-style multiple selection
 - Standard macOS text size with reduced row spacing
 - Open files with their default applications

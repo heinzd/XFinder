@@ -105,13 +105,14 @@ struct FileSystemService {
             guard seenPaths.insert(standardizedURL.path).inserted else { return nil }
             let values = try? standardizedURL.resourceValues(forKeys: keys)
             guard values?.isDirectory == true else { return nil }
+            guard values?.volumeIsInternal != true else { return nil }
             let systemImage: String
             if values?.volumeIsLocal == false {
                 systemImage = "network"
             } else if values?.volumeIsRemovable == true || values?.volumeIsEjectable == true {
                 systemImage = "externaldrive"
             } else {
-                systemImage = "internaldrive"
+                systemImage = "externaldrive"
             }
             return SidebarLocation(
                 title: values?.volumeLocalizedName ?? standardizedURL.lastPathComponent,
