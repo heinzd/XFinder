@@ -51,7 +51,7 @@ struct FileListView: View {
                 .width(min: 120, ideal: 220)
             }
         }
-        .font(.system(size: 11))
+        .font(.body)
         .controlSize(.mini)
         .environment(\.defaultMinListRowHeight, 14)
         .tableStyle(.inset(alternatesRowBackgrounds: true))
