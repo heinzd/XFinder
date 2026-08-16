@@ -27,7 +27,7 @@ struct ContentView: View {
         .searchable(
             text: $searchText,
             placement: .toolbar,
-            prompt: Text(model.text("Search or Pattern"))
+            prompt: Text(model.text("Search"))
         )
         .alert("XFinder", isPresented: errorPresented) {
             Button("OK", role: .cancel) {
