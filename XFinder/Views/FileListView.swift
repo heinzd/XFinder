@@ -57,9 +57,20 @@ struct FileListView: View {
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: FileItem.ID.self) { selection in
             Menu(model.text("New File")) {
-                ForEach(NewFileKind.allCases) { kind in
+                ForEach(model.standardNewFileKinds) { kind in
                     Button(model.text(kind.title)) {
                         model.createFile(kind)
+                    }
+                }
+
+                if !model.openDocumentNewFileKinds.isEmpty {
+                    Divider()
+                    Menu(model.openDocumentMenuTitle) {
+                        ForEach(model.openDocumentNewFileKinds) { kind in
+                            Button(model.text(kind.title)) {
+                                model.createFile(kind)
+                            }
+                        }
                     }
                 }
             }
@@ -67,6 +78,10 @@ struct FileListView: View {
             Button(model.text("Open")) {
                 openFirst(in: selection)
             }
+            Button(model.text("Quick Look")) {
+                model.preview(selection)
+            }
+            .disabled(!canPreview(selection))
             Divider()
             Button(model.text("Rename…")) {
                 model.selectedItemIDs = selection
@@ -104,5 +119,12 @@ struct FileListView: View {
               let id = selection.first,
               let item = model.item(withID: id) else { return false }
         return item.canNavigateInto
+    }
+
+    private func canPreview(_ selection: Set<FileItem.ID>) -> Bool {
+        selection.contains { id in
+            guard let item = model.item(withID: id) else { return false }
+            return !item.isDirectory
+        }
     }
 }
