@@ -12,10 +12,13 @@ XFinder is a native file manager for macOS with a custom SwiftUI interface.
   external drives, and network volumes
 - Internal and virtual system volumes are excluded from the sidebar
 - Compact multi-column file list with Finder-style multiple selection
+- Native Quick Look preview for one or multiple selected files (`Space`)
 - Standard macOS text size with reduced row spacing
 - Open files with their default applications; Unix scripts require confirmation
 - Create folders, rename items, and move items to Trash
 - Create text, rich-text, Word, Excel, and PowerPoint documents from the context menu
+- Create OpenDocument text, spreadsheet, and presentation files when LibreOffice
+  or OpenOffice is installed
 - Optionally show hidden files
 - Recursive name search through all subfolders, including wildcard patterns such
   as `test.*`, `*.txt`, and `report-?.pdf`
@@ -24,6 +27,7 @@ XFinder is a native file manager for macOS with a custom SwiftUI interface.
 - Open the current path in the original Finder
 - Open the current folder in Terminal
 - Complete macOS application icon
+- Explicit regular-app activation so the icon is visible in the Dock when run from Xcode
 - Dedicated Settings dialog (`⌘,`)
 - English as the default language, with German available at runtime
 
