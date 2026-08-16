@@ -519,6 +519,28 @@ final class BrowserViewModel: ObservableObject {
         }
     }
 
+    @discardableResult
+    func copyDroppedItems(_ urls: [URL], to destination: URL) -> Bool {
+        let fileURLs = urls.filter(\.isFileURL)
+        guard !fileURLs.isEmpty else { return false }
+        let target = destination.standardizedFileURL
+
+        Task {
+            do {
+                let copiedURLs = try await Task.detached(priority: .userInitiated) {
+                    try FileSystemService().copyItems(fileURLs, to: target)
+                }.value
+                reload()
+                if target == currentURL.standardizedFileURL {
+                    selectedItemIDs = Set(copiedURLs.map(\.standardizedFileURL))
+                }
+            } catch {
+                present(error)
+            }
+        }
+        return true
+    }
+
     func revealSelectionInFinder() {
         let urls = selectedItems.map(\.url)
         guard !urls.isEmpty else { return }
@@ -662,6 +684,8 @@ final class BrowserViewModel: ObservableObject {
                 errorMessage = "Ein Objekt namens „\(name)“ ist bereits vorhanden."
             case .missingTemplate(let pathExtension):
                 errorMessage = "Die Vorlage für .\(pathExtension)-Dateien fehlt."
+            case .cannotCopyIntoItself(let name):
+                errorMessage = "„\(name)“ kann nicht in sich selbst kopiert werden."
             }
             return
         }
