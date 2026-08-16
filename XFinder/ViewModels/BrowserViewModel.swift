@@ -1,5 +1,71 @@
 import AppKit
 import Foundation
+@preconcurrency import ImageCaptureCore
+
+private struct ConnectedMediaDevice: Identifiable, Equatable, Sendable {
+    let id: String
+    let name: String
+
+    var systemImage: String {
+        if name.localizedCaseInsensitiveContains("iphone") {
+            return "iphone"
+        }
+        if name.localizedCaseInsensitiveContains("ipad") {
+            return "ipad"
+        }
+        return "camera"
+    }
+}
+
+@MainActor
+private final class ConnectedDeviceMonitor: NSObject, @preconcurrency ICDeviceBrowserDelegate {
+    private let browser = ICDeviceBrowser()
+    private var devices: [ObjectIdentifier: ConnectedMediaDevice] = [:]
+    private let didChange: ([ConnectedMediaDevice]) -> Void
+
+    init(didChange: @escaping ([ConnectedMediaDevice]) -> Void) {
+        self.didChange = didChange
+        super.init()
+        browser.delegate = self
+        browser.browsedDeviceTypeMask = ICDeviceTypeMask(
+            rawValue: ICDeviceTypeMask.camera.rawValue
+                | ICDeviceLocationTypeMask.local.rawValue
+        )!
+        browser.start()
+    }
+
+    func deviceBrowser(
+        _ browser: ICDeviceBrowser,
+        didAdd device: ICDevice,
+        moreComing: Bool
+    ) {
+        let fallbackID = String(ObjectIdentifier(device).hashValue)
+        let identifier = (device.uuidString as String?) ?? fallbackID
+        let detectedName = (device.name as String?)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = detectedName.flatMap { $0.isEmpty ? nil : $0 }
+            ?? "Connected Device"
+        devices[ObjectIdentifier(device)] = ConnectedMediaDevice(id: identifier, name: name)
+        publishDevices()
+    }
+
+    func deviceBrowser(
+        _ browser: ICDeviceBrowser,
+        didRemove device: ICDevice,
+        moreGoing: Bool
+    ) {
+        devices.removeValue(forKey: ObjectIdentifier(device))
+        publishDevices()
+    }
+
+    private func publishDevices() {
+        didChange(
+            devices.values.sorted {
+                $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+        )
+    }
+}
 
 @MainActor
 final class BrowserViewModel: ObservableObject {
@@ -11,9 +77,11 @@ final class BrowserViewModel: ObservableObject {
     @Published private(set) var isSearching = false
     @Published private(set) var activeSearchQuery = ""
     @Published private(set) var customFavoriteURLs: [URL] = []
+    @Published private var connectedDevices: [ConnectedMediaDevice] = []
     @Published var selectedItemIDs: Set<FileItem.ID> = []
     @Published var errorMessage: String?
     @Published var renameTarget: FileItem?
+    @Published var pendingExecutionItem: FileItem?
     @Published var isShowingSettings = false
     @Published var language: AppLanguage {
         didSet {
@@ -31,6 +99,7 @@ final class BrowserViewModel: ObservableObject {
     private var history: [URL]
     private var historyIndex = 0
     private var searchTask: Task<Void, Never>?
+    private var deviceMonitor: ConnectedDeviceMonitor?
     private static let hiddenFilesKey = "showHiddenFiles"
     private static let languageKey = "appLanguage"
     private static let customFavoritesKey = "customFavoritePaths"
@@ -45,6 +114,9 @@ final class BrowserViewModel: ObservableObject {
         customFavoriteURLs = UserDefaults.standard
             .stringArray(forKey: Self.customFavoritesKey)?
             .map { URL(fileURLWithPath: $0, isDirectory: true).standardizedFileURL } ?? []
+        deviceMonitor = ConnectedDeviceMonitor { [weak self] devices in
+            self?.connectedDevices = devices
+        }
         reload()
     }
 
@@ -107,6 +179,16 @@ final class BrowserViewModel: ObservableObject {
                 url: home.appendingPathComponent(".Trash", isDirectory: true)
             )
         )
+
+        locations.append(contentsOf: connectedDevices.compactMap { device in
+            guard let url = URL(string: "xfinder-device:/\(device.id)") else { return nil }
+            return SidebarLocation(
+                title: device.name == "Connected Device" ? text(device.name) : device.name,
+                systemImage: device.systemImage,
+                url: url,
+                opensExternally: true
+            )
+        })
 
         locations.append(contentsOf: volumes)
 
@@ -276,12 +358,35 @@ final class BrowserViewModel: ObservableObject {
     func open(_ item: FileItem) {
         if item.canNavigateInto {
             navigate(to: item.url)
+        } else if fileSystem.requiresExecutionConfirmation(for: item) {
+            pendingExecutionItem = item
         } else {
             NSWorkspace.shared.open(item.url)
         }
     }
 
+    func confirmPendingExecution() {
+        guard let item = pendingExecutionItem else { return }
+        pendingExecutionItem = nil
+        NSWorkspace.shared.open(item.url)
+    }
+
+    func cancelPendingExecution() {
+        pendingExecutionItem = nil
+    }
+
+    func executionConfirmationMessage(for item: FileItem) -> String {
+        if language == .german {
+            return "Soll das Unix-Script „\(item.name)“ wirklich gestartet werden?"
+        }
+        return "Do you really want to run the Unix script “\(item.name)”?"
+    }
+
     func open(_ location: SidebarLocation) {
+        if location.url.scheme == "xfinder-device" {
+            openImageCapture()
+            return
+        }
         if location.opensExternally {
             NSWorkspace.shared.open(location.url)
         } else {
@@ -400,6 +505,18 @@ final class BrowserViewModel: ObservableObject {
         NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
     }
 
+    private func openImageCapture() {
+        guard let applicationURL = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: "com.apple.Image_Capture"
+        ) else {
+            errorMessage = language == .german
+                ? "Das Programm „Digitale Bilder“ wurde nicht gefunden."
+                : "Image Capture could not be found."
+            return
+        }
+        NSWorkspace.shared.open(applicationURL)
+    }
+
     private func resetSearch() {
         searchTask?.cancel()
         activeSearchQuery = ""
@@ -499,6 +616,9 @@ final class BrowserViewModel: ObservableObject {
         "Movies": "Filme",
         "iCloud Drive": "iCloud Drive",
         "Trash": "Papierkorb",
+        "Connected Device": "Verbundenes Gerät",
+        "Run Script?": "Script starten?",
+        "Run": "Starten",
         "Add Current Folder to Favorites": "Aktuellen Ordner zu Favoriten hinzufügen",
         "Remove from Favorites": "Aus Favoriten entfernen",
         "Custom Favorites": "Eigene Favoriten",
@@ -514,6 +634,7 @@ final class BrowserViewModel: ObservableObject {
         "In Finder": "Im Finder",
         "Open the current folder in the original Finder": "Aktuellen Ordner im originalen Finder öffnen",
         "Search This Folder": "In diesem Ordner suchen",
+        "Search or Pattern": "Suchen oder Muster",
         "Favorites": "Favoriten",
         "Locations": "Orte",
         "Hide hidden files": "Versteckte Dateien ausblenden",
