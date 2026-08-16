@@ -88,7 +88,7 @@ private final class QuickLookController: NSObject, @preconcurrency QLPreviewPane
     func previewPanel(
         _ panel: QLPreviewPanel!,
         previewItemAt index: Int
-    ) -> QLPreviewItem! {
+    ) -> (any QLPreviewItem)! {
         guard previewURLs.indices.contains(index) else { return nil }
         return previewURLs[index] as NSURL
     }
