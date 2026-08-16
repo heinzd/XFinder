@@ -112,6 +112,11 @@ private struct BrowserToolbar: ToolbarContent {
             }
             .help(model.text("Open the current folder in the original Finder"))
 
+            Button(action: model.openCurrentFolderInTerminal) {
+                Image(systemName: "terminal")
+            }
+            .help(model.text("Open Current Folder in Terminal"))
+
             Button {
                 model.isShowingSettings = true
             } label: {

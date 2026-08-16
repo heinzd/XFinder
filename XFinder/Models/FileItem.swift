@@ -14,6 +14,46 @@ enum AppLanguage: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+enum NewFileKind: String, CaseIterable, Identifiable, Sendable {
+    case text
+    case richText
+    case word
+    case excel
+    case powerpoint
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .text: "Text Document (.txt)"
+        case .richText: "Rich Text Document (.rtf)"
+        case .word: "Word Document (.docx)"
+        case .excel: "Excel Workbook (.xlsx)"
+        case .powerpoint: "PowerPoint Presentation (.pptx)"
+        }
+    }
+
+    var baseName: String {
+        switch self {
+        case .text: "New Text Document"
+        case .richText: "New Rich Text Document"
+        case .word: "New Word Document"
+        case .excel: "New Excel Workbook"
+        case .powerpoint: "New PowerPoint Presentation"
+        }
+    }
+
+    var pathExtension: String {
+        switch self {
+        case .text: "txt"
+        case .richText: "rtf"
+        case .word: "docx"
+        case .excel: "xlsx"
+        case .powerpoint: "pptx"
+        }
+    }
+}
+
 struct FileItem: Identifiable, Hashable, Sendable {
     let url: URL
     let name: String

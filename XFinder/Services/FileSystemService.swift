@@ -103,9 +103,10 @@ struct FileSystemService {
         return urls.compactMap { url in
             let standardizedURL = url.standardizedFileURL
             guard seenPaths.insert(standardizedURL.path).inserted else { return nil }
+            guard standardizedURL.path.hasPrefix("/Volumes/") else { return nil }
             let values = try? standardizedURL.resourceValues(forKeys: keys)
             guard values?.isDirectory == true else { return nil }
-            guard values?.volumeIsInternal != true else { return nil }
+            guard values?.volumeIsInternal == false else { return nil }
             let systemImage: String
             if values?.volumeIsLocal == false {
                 systemImage = "network"
@@ -123,6 +124,41 @@ struct FileSystemService {
         .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
     }
 
+    func finderFavoriteURLs() -> [URL] {
+        let sharedFileListFolder = URL.homeDirectory
+            .appendingPathComponent("Library/Application Support/com.apple.sharedfilelist", isDirectory: true)
+
+        guard let files = try? fileManager.contentsOfDirectory(
+            at: sharedFileListFolder,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+
+        let favoriteFiles = files.filter {
+            $0.lastPathComponent.hasPrefix("com.apple.LSSharedFileList.FavoriteItems.sfl")
+        }
+        var results: [URL] = []
+
+        for file in favoriteFiles {
+            guard let data = try? Data(contentsOf: file),
+                  let propertyList = try? PropertyListSerialization.propertyList(
+                    from: data,
+                    options: [],
+                    format: nil
+                  ) else { continue }
+            collectFileURLs(from: propertyList, into: &results)
+        }
+
+        var seen = Set<String>()
+        return results.filter { url in
+            let standardizedURL = url.standardizedFileURL
+            var isDirectory: ObjCBool = false
+            guard fileManager.fileExists(atPath: standardizedURL.path, isDirectory: &isDirectory),
+                  isDirectory.boolValue else { return false }
+            return seen.insert(standardizedURL.path).inserted
+        }
+    }
+
     func createFolder(in directory: URL, baseName: String) throws -> URL {
         var candidate = directory.appendingPathComponent(baseName, isDirectory: true)
         var suffix = 2
@@ -131,6 +167,35 @@ struct FileSystemService {
             suffix += 1
         }
         try fileManager.createDirectory(at: candidate, withIntermediateDirectories: false)
+        return candidate
+    }
+
+    func createFile(in directory: URL, kind: NewFileKind, baseName: String) throws -> URL {
+        var candidate = directory
+            .appendingPathComponent(baseName)
+            .appendingPathExtension(kind.pathExtension)
+        var suffix = 2
+        while fileManager.fileExists(atPath: candidate.path) {
+            candidate = directory
+                .appendingPathComponent("\(baseName) \(suffix)")
+                .appendingPathExtension(kind.pathExtension)
+            suffix += 1
+        }
+
+        switch kind {
+        case .text:
+            try Data().write(to: candidate, options: .atomic)
+        case .richText:
+            try Data("{\\rtf1\\ansi\\deff0\\n}".utf8).write(to: candidate, options: .atomic)
+        case .word, .excel, .powerpoint:
+            guard let templateURL = Bundle.main.url(
+                forResource: "Blank",
+                withExtension: kind.pathExtension
+            ) else {
+                throw FileSystemError.missingTemplate(kind.pathExtension)
+            }
+            try fileManager.copyItem(at: templateURL, to: candidate)
+        }
         return candidate
     }
 
@@ -151,6 +216,41 @@ struct FileSystemService {
     func moveToTrash(_ item: FileItem) throws {
         var resultingURL: NSURL?
         try fileManager.trashItem(at: item.url, resultingItemURL: &resultingURL)
+    }
+
+    private func collectFileURLs(from value: Any, into results: inout [URL]) {
+        if let data = value as? Data {
+            var isStale = false
+            if let url = try? URL(
+                resolvingBookmarkData: data,
+                options: [.withoutUI, .withoutMounting],
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            ), url.isFileURL {
+                results.append(url)
+            }
+            return
+        }
+
+        if let string = value as? String,
+           string.hasPrefix("file://"),
+           let url = URL(string: string) {
+            results.append(url)
+            return
+        }
+
+        if let array = value as? [Any] {
+            for item in array {
+                collectFileURLs(from: item, into: &results)
+            }
+            return
+        }
+
+        if let dictionary = value as? [AnyHashable: Any] {
+            for item in dictionary.values {
+                collectFileURLs(from: item, into: &results)
+            }
+        }
     }
 
     private func makeItem(for url: URL, keys: Set<URLResourceKey>) throws -> FileItem {
@@ -176,6 +276,7 @@ struct FileSystemService {
 enum FileSystemError: LocalizedError {
     case invalidName
     case itemAlreadyExists(String)
+    case missingTemplate(String)
 
     var errorDescription: String? {
         switch self {
@@ -183,6 +284,8 @@ enum FileSystemError: LocalizedError {
             return "The name must not be empty or contain a slash."
         case .itemAlreadyExists(let name):
             return "An item named “\(name)” already exists."
+        case .missingTemplate(let pathExtension):
+            return "The template for .\(pathExtension) files is missing."
         }
     }
 }

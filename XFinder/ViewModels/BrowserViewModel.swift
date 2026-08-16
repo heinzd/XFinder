@@ -6,6 +6,7 @@ final class BrowserViewModel: ObservableObject {
     @Published private(set) var currentURL: URL
     @Published private(set) var items: [FileItem] = []
     @Published private(set) var volumes: [SidebarLocation] = []
+    @Published private(set) var finderFavoriteURLs: [URL] = []
     @Published private(set) var searchResults: [FileItem] = []
     @Published private(set) var isSearching = false
     @Published private(set) var activeSearchQuery = ""
@@ -49,7 +50,7 @@ final class BrowserViewModel: ObservableObject {
 
     var favorites: [SidebarLocation] {
         let home = URL.homeDirectory
-        return [
+        var locations = [
             SidebarLocation(title: text("Home"), systemImage: "house", url: home),
             SidebarLocation(title: text("Desktop"), systemImage: "menubar.dock.rectangle", url: home.appendingPathComponent("Desktop", isDirectory: true)),
             SidebarLocation(title: text("Documents"), systemImage: "doc", url: home.appendingPathComponent("Documents", isDirectory: true)),
@@ -59,6 +60,18 @@ final class BrowserViewModel: ObservableObject {
             SidebarLocation(title: text("Movies"), systemImage: "film", url: home.appendingPathComponent("Movies", isDirectory: true)),
             SidebarLocation(title: text("Applications"), systemImage: "square.grid.2x2", url: URL(fileURLWithPath: "/Applications", isDirectory: true))
         ]
+
+        let standardPaths = Set(locations.map { $0.url.standardizedFileURL.path })
+        locations.append(contentsOf: finderFavoriteURLs.compactMap { url in
+            let standardizedURL = url.standardizedFileURL
+            guard !standardPaths.contains(standardizedURL.path) else { return nil }
+            return SidebarLocation(
+                title: standardizedURL.path == "/" ? "Macintosh HD" : standardizedURL.lastPathComponent,
+                systemImage: "folder",
+                url: standardizedURL
+            )
+        })
+        return locations
     }
 
     var locations: [SidebarLocation] {
@@ -194,7 +207,16 @@ final class BrowserViewModel: ObservableObject {
     }
 
     func addCurrentFolderToFavorites() {
-        let url = currentURL.standardizedFileURL
+        addFavorite(currentURL)
+    }
+
+    func addSelectionToFavorites() {
+        guard let item = selectedItem, item.canNavigateInto else { return }
+        addFavorite(item.url)
+    }
+
+    private func addFavorite(_ favoriteURL: URL) {
+        let url = favoriteURL.standardizedFileURL
         guard !favorites.contains(where: { $0.url.standardizedFileURL == url }),
               !customFavoriteURLs.contains(where: { $0.standardizedFileURL == url }) else { return }
         customFavoriteURLs.append(url)
@@ -211,6 +233,7 @@ final class BrowserViewModel: ObservableObject {
         do {
             items = try fileSystem.contents(of: currentURL, showHiddenFiles: showHiddenFiles)
             volumes = fileSystem.mountedVolumes()
+            finderFavoriteURLs = fileSystem.finderFavoriteURLs()
             let availableIDs = Set(items.map(\.id))
             if activeSearchQuery.isEmpty {
                 selectedItemIDs.formIntersection(availableIDs)
@@ -303,6 +326,21 @@ final class BrowserViewModel: ObservableObject {
         }
     }
 
+    func createFile(_ kind: NewFileKind) {
+        do {
+            let newURL = try fileSystem.createFile(
+                in: currentURL,
+                kind: kind,
+                baseName: text(kind.baseName)
+            )
+            reload()
+            selectedItemIDs = [newURL]
+            renameTarget = selectedItem
+        } catch {
+            present(error)
+        }
+    }
+
     func beginRename() {
         renameTarget = selectedItem
     }
@@ -340,6 +378,17 @@ final class BrowserViewModel: ObservableObject {
 
     func revealCurrentFolderInFinder() {
         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: currentURL.path)
+    }
+
+    func openCurrentFolderInTerminal() {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-a", "Terminal", currentURL.path]
+        do {
+            try process.run()
+        } catch {
+            present(error)
+        }
     }
 
     func openFullDiskAccessSettings() {
@@ -399,6 +448,8 @@ final class BrowserViewModel: ObservableObject {
                 errorMessage = "Der Name darf nicht leer sein und keinen Schrägstrich enthalten."
             case .itemAlreadyExists(let name):
                 errorMessage = "Ein Objekt namens „\(name)“ ist bereits vorhanden."
+            case .missingTemplate(let pathExtension):
+                errorMessage = "Die Vorlage für .\(pathExtension)-Dateien fehlt."
             }
             return
         }
@@ -417,6 +468,17 @@ final class BrowserViewModel: ObservableObject {
         "Configure Full Disk Access…": "Vollzugriff auf Festplatte konfigurieren …",
         "Done": "Fertig",
         "New Folder": "Neuer Ordner",
+        "New File": "Neue Datei",
+        "Text Document (.txt)": "Textdokument (.txt)",
+        "Rich Text Document (.rtf)": "Rich-Text-Dokument (.rtf)",
+        "Word Document (.docx)": "Word-Dokument (.docx)",
+        "Excel Workbook (.xlsx)": "Excel-Arbeitsmappe (.xlsx)",
+        "PowerPoint Presentation (.pptx)": "PowerPoint-Präsentation (.pptx)",
+        "New Text Document": "Neues Textdokument",
+        "New Rich Text Document": "Neues Rich-Text-Dokument",
+        "New Word Document": "Neues Word-Dokument",
+        "New Excel Workbook": "Neue Excel-Arbeitsmappe",
+        "New PowerPoint Presentation": "Neue PowerPoint-Präsentation",
         "Rename…": "Umbenennen …",
         "Rename": "Umbenennen",
         "Cancel": "Abbrechen",
@@ -445,6 +507,8 @@ final class BrowserViewModel: ObservableObject {
         "Location": "Ort",
         "Searching subfolders…": "Unterordner werden durchsucht …",
         "Open Current Folder in Finder": "Aktuellen Ordner im Finder öffnen",
+        "Open Current Folder in Terminal": "Aktuellen Ordner im Terminal öffnen",
+        "Add to Favorites": "Zu Favoriten hinzufügen",
         "Open": "Öffnen",
         "Show in Finder": "Im Finder zeigen",
         "In Finder": "Im Finder",

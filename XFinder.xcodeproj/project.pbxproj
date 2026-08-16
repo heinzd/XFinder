@@ -16,6 +16,9 @@
 		100000000000000000000107 /* PathBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000007 /* PathBarView.swift */; };
 		100000000000000000000108 /* FileListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000008 /* FileListView.swift */; };
 		100000000000000000000109 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000009 /* Assets.xcassets */; };
+		100000000000000000000110 /* Blank.docx in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000012 /* Blank.docx */; };
+		100000000000000000000111 /* Blank.xlsx in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000013 /* Blank.xlsx */; };
+		100000000000000000000112 /* Blank.pptx in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000014 /* Blank.pptx */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,6 +33,9 @@
 		100000000000000000000009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		100000000000000000000010 /* XFinder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = XFinder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		100000000000000000000011 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
+		100000000000000000000012 /* Blank.docx */ = {isa = PBXFileReference; lastKnownFileType = file; path = Blank.docx; sourceTree = "<group>"; };
+		100000000000000000000013 /* Blank.xlsx */ = {isa = PBXFileReference; lastKnownFileType = file; path = Blank.xlsx; sourceTree = "<group>"; };
+		100000000000000000000014 /* Blank.pptx */ = {isa = PBXFileReference; lastKnownFileType = file; path = Blank.pptx; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -61,6 +67,7 @@
 				100000000000000000000305 /* Services */,
 				100000000000000000000306 /* ViewModels */,
 				100000000000000000000307 /* Views */,
+				100000000000000000000309 /* Templates */,
 				100000000000000000000009 /* Assets.xcassets */,
 			);
 			path = XFinder;
@@ -114,6 +121,16 @@
 				100000000000000000000011 /* Shared.xcconfig */,
 			);
 			path = Config;
+			sourceTree = "<group>";
+		};
+		100000000000000000000309 /* Templates */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000012 /* Blank.docx */,
+				100000000000000000000013 /* Blank.xlsx */,
+				100000000000000000000014 /* Blank.pptx */,
+			);
+			path = Templates;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -177,6 +194,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				100000000000000000000109 /* Assets.xcassets in Resources */,
+				100000000000000000000110 /* Blank.docx in Resources */,
+				100000000000000000000111 /* Blank.xlsx in Resources */,
+				100000000000000000000112 /* Blank.pptx in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

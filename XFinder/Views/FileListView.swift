@@ -56,6 +56,14 @@ struct FileListView: View {
         .environment(\.defaultMinListRowHeight, 14)
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: FileItem.ID.self) { selection in
+            Menu(model.text("New File")) {
+                ForEach(NewFileKind.allCases) { kind in
+                    Button(model.text(kind.title)) {
+                        model.createFile(kind)
+                    }
+                }
+            }
+            Divider()
             Button(model.text("Open")) {
                 openFirst(in: selection)
             }
@@ -69,6 +77,11 @@ struct FileListView: View {
                 model.selectedItemIDs = selection
                 model.revealSelectionInFinder()
             }
+            Button(model.text("Add to Favorites")) {
+                model.selectedItemIDs = selection
+                model.addSelectionToFavorites()
+            }
+            .disabled(!canAddToFavorites(selection))
             Divider()
             Button(model.text("Move to Trash"), role: .destructive) {
                 model.selectedItemIDs = selection
@@ -84,5 +97,12 @@ struct FileListView: View {
         guard let id = selection.first,
               let item = model.item(withID: id) else { return }
         model.open(item)
+    }
+
+    private func canAddToFavorites(_ selection: Set<FileItem.ID>) -> Bool {
+        guard selection.count == 1,
+              let id = selection.first,
+              let item = model.item(withID: id) else { return false }
+        return item.canNavigateInto
     }
 }
