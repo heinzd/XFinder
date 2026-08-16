@@ -545,7 +545,14 @@ final class BrowserViewModel: ObservableObject {
     func copyDroppedItems(_ urls: [URL], to destination: URL) -> Bool {
         let fileURLs = urls.filter(\.isFileURL)
         guard !fileURLs.isEmpty else { return false }
-        let target = destination.standardizedFileURL
+        let target = destination.standardizedFileURL.resolvingSymlinksInPath()
+        guard !fileURLs.contains(where: {
+            $0.deletingLastPathComponent()
+                .standardizedFileURL
+                .resolvingSymlinksInPath() == target
+        }) else {
+            return false
+        }
 
         Task {
             do {
@@ -553,7 +560,7 @@ final class BrowserViewModel: ObservableObject {
                     try FileSystemService().copyItems(fileURLs, to: target)
                 }.value
                 reload()
-                if target == currentURL.standardizedFileURL {
+                if target == currentURL.standardizedFileURL.resolvingSymlinksInPath() {
                     selectedItemIDs = Set(copiedURLs.map(\.standardizedFileURL))
                 }
             } catch {
@@ -844,7 +851,7 @@ final class BrowserViewModel: ObservableObject {
         "In Finder": "Im Finder",
         "Open the current folder in the original Finder": "Aktuellen Ordner im originalen Finder öffnen",
         "Search This Folder": "In diesem Ordner suchen",
-        "Search or Pattern": "Suchen oder Muster",
+        "Search": "Suchen",
         "Favorites": "Favoriten",
         "Locations": "Orte",
         "Hide hidden files": "Versteckte Dateien ausblenden",
