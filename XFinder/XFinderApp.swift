@@ -1,8 +1,25 @@
+import AppKit
 import SwiftUI
+
+@MainActor
+private final class XFinderAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        NSApplication.shared.setActivationPolicy(.regular)
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+           let icon = NSImage(contentsOf: iconURL) {
+            NSApplication.shared.applicationIconImage = icon
+        }
+        NSApplication.shared.activate(ignoringOtherApps: true)
+    }
+}
 
 @main
 @MainActor
 struct XFinderApp: App {
+    @NSApplicationDelegateAdaptor(XFinderAppDelegate.self) private var appDelegate
     @StateObject private var model = BrowserViewModel()
 
     var body: some Scene {
@@ -34,6 +51,12 @@ private struct XFinderCommands: Commands {
                 model.beginRename()
             }
             .disabled(model.selectedItem == nil)
+
+            Button(model.text("Quick Look")) {
+                model.previewSelection()
+            }
+            .keyboardShortcut(.space, modifiers: [])
+            .disabled(!model.canPreviewSelection)
 
             Button(model.text("Move to Trash")) {
                 model.moveSelectionToTrash()
