@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct FileListView: View {
     @EnvironmentObject private var model: BrowserViewModel
@@ -56,15 +57,17 @@ struct FileListView: View {
         } rows: {
             ForEach(sortedItems) { item in
                 TableRow(item)
-                    .draggable(item.url)
+                    .itemProvider {
+                        model.dragProvider(for: item)
+                    }
             }
         }
         .font(.body)
         .controlSize(.mini)
         .environment(\.defaultMinListRowHeight, 14)
         .tableStyle(.inset(alternatesRowBackgrounds: true))
-        .dropDestination(for: URL.self) { urls, _ in
-            model.copyDroppedItems(urls, to: model.currentURL)
+        .onDrop(of: acceptedDropTypes, isTargeted: nil) { providers in
+            model.copyExternalDroppedItems(providers, to: model.currentURL)
         }
         .contextMenu(forSelectionType: FileItem.ID.self) { selection in
             Menu(model.text("New File")) {
@@ -140,12 +143,19 @@ struct FileListView: View {
         }
 
         if item.canNavigateInto {
-            cell.dropDestination(for: URL.self) { urls, _ in
-                model.copyDroppedItems(urls, to: item.url)
+            cell.onDrop(of: acceptedDropTypes, isTargeted: nil) { providers in
+                model.copyExternalDroppedItems(providers, to: item.url)
             }
         } else {
             cell
         }
+    }
+
+    private var acceptedDropTypes: [UTType] {
+        [
+            .fileURL,
+            UTType(importedAs: BrowserViewModel.internalDragTypeIdentifier)
+        ]
     }
 
     private func openFirst(in selection: Set<FileItem.ID>) {
