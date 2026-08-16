@@ -66,13 +66,33 @@ struct FileSystemService {
             }
 
             let name = values.name ?? url.lastPathComponent
-            guard name.localizedCaseInsensitiveContains(needle) else { continue }
+            guard matchesName(name, query: needle) else { continue }
             results.append(makeItem(for: url, values: values))
         }
 
         return results.sorted {
             $0.url.path.localizedStandardCompare($1.url.path) == .orderedAscending
         }
+    }
+
+    func requiresExecutionConfirmation(for item: FileItem) -> Bool {
+        guard !item.isDirectory, !item.isPackage else { return false }
+
+        let scriptExtensions: Set<String> = [
+            "awk", "bash", "command", "csh", "fish", "js", "ksh", "php",
+            "pl", "pm", "py", "pyw", "rb", "sh", "swift", "tcl", "tcsh", "zsh"
+        ]
+        if scriptExtensions.contains(item.url.pathExtension.lowercased()) {
+            return true
+        }
+        if fileManager.isExecutableFile(atPath: item.url.path) {
+            return true
+        }
+
+        guard let handle = try? FileHandle(forReadingFrom: item.url) else { return false }
+        defer { try? handle.close() }
+        let prefix = try? handle.read(upToCount: 2)
+        return prefix == Data([0x23, 0x21])
     }
 
     func mountedVolumes() -> [SidebarLocation] {
@@ -216,6 +236,43 @@ struct FileSystemService {
     func moveToTrash(_ item: FileItem) throws {
         var resultingURL: NSURL?
         try fileManager.trashItem(at: item.url, resultingItemURL: &resultingURL)
+    }
+
+    private func matchesName(_ name: String, query: String) -> Bool {
+        guard query.contains("*") || query.contains("?") else {
+            return name.localizedCaseInsensitiveContains(query)
+        }
+        return wildcardMatch(name, pattern: query)
+    }
+
+    private func wildcardMatch(_ name: String, pattern: String) -> Bool {
+        let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+        let nameCharacters = Array(name.folding(options: options, locale: .current))
+        let patternCharacters = Array(pattern.folding(options: options, locale: .current))
+        var previous = [Bool](repeating: false, count: nameCharacters.count + 1)
+        previous[0] = true
+
+        for patternCharacter in patternCharacters {
+            var current = [Bool](repeating: false, count: nameCharacters.count + 1)
+            if patternCharacter == "*" {
+                current[0] = previous[0]
+            }
+
+            for index in 1..<current.count {
+                switch patternCharacter {
+                case "*":
+                    current[index] = previous[index] || current[index - 1]
+                case "?":
+                    current[index] = previous[index - 1]
+                default:
+                    current[index] = previous[index - 1]
+                        && patternCharacter == nameCharacters[index - 1]
+                }
+            }
+            previous = current
+        }
+
+        return previous[nameCharacters.count]
     }
 
     private func collectFileURLs(from value: Any, into results: inout [URL]) {
