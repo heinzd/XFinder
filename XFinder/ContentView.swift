@@ -12,8 +12,6 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 280)
         } detail: {
             VStack(spacing: 0) {
-                BrowserToolbar(searchText: $searchText)
-                Divider()
                 PathBarView()
                 Divider()
                 FileListView(searchText: searchText)
@@ -23,6 +21,14 @@ struct ContentView: View {
             .background(Color(nsColor: .controlBackgroundColor))
         }
         .navigationTitle(model.currentURL.lastPathComponentOrRoot)
+        .toolbar {
+            BrowserToolbar()
+        }
+        .searchable(
+            text: $searchText,
+            placement: .toolbar,
+            prompt: Text(model.text("Search This Folder"))
+        )
         .alert("XFinder", isPresented: errorPresented) {
             Button("OK", role: .cancel) {
                 model.errorMessage = nil
@@ -66,12 +72,11 @@ struct ContentView: View {
     }
 }
 
-private struct BrowserToolbar: View {
+private struct BrowserToolbar: ToolbarContent {
     @EnvironmentObject private var model: BrowserViewModel
-    @Binding var searchText: String
 
-    var body: some View {
-        HStack(spacing: 8) {
+    var body: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigation) {
             Button(action: model.goBack) {
                 Image(systemName: "chevron.left")
             }
@@ -89,10 +94,9 @@ private struct BrowserToolbar: View {
             }
             .disabled(model.currentURL.path == "/")
             .help(model.text("Enclosing Folder"))
+        }
 
-            Divider()
-                .frame(height: 18)
-
+        ToolbarItemGroup(placement: .automatic) {
             Button(action: model.createFolder) {
                 Image(systemName: "folder.badge.plus")
             }
@@ -104,7 +108,7 @@ private struct BrowserToolbar: View {
             .help(model.text("Reload"))
 
             Button(action: model.revealCurrentFolderInFinder) {
-                Label(model.text("In Finder"), systemImage: "arrow.up.forward.app")
+                Image(systemName: "arrow.up.forward.app")
             }
             .help(model.text("Open the current folder in the original Finder"))
 
@@ -114,21 +118,14 @@ private struct BrowserToolbar: View {
                 Image(systemName: "gearshape")
             }
             .help(model.text("Settings"))
+        }
 
-            Spacer()
-
-            TextField(model.text("Search This Folder"), text: $searchText)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 250)
-
+        ToolbarItem(placement: .automatic) {
             if model.isSearching {
                 ProgressView()
                     .controlSize(.small)
             }
         }
-        .buttonStyle(.borderless)
-        .padding(.horizontal, 12)
-        .frame(height: 44)
     }
 }
 
