@@ -80,6 +80,10 @@ struct FileListView: View {
                     }
                 }
             }
+            Button(model.newFolderWithSelectionTitle(selection.count)) {
+                model.createFolder(with: selection)
+            }
+            .disabled(selection.isEmpty)
             Divider()
             Button(model.text("Open")) {
                 openFirst(in: selection)
@@ -129,14 +133,7 @@ struct FileListView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
         }
-        .contentShape(Rectangle())
-        .onDrag {
-            if !model.selectedItemIDs.contains(item.id) {
-                model.selectedItemIDs = [item.id]
-            }
-            return NSItemProvider(contentsOf: item.url)
-                ?? NSItemProvider(object: item.url as NSURL)
-        }
+        .draggable(item.url)
 
         if item.canNavigateInto {
             cell.dropDestination(for: URL.self) { urls, _ in
