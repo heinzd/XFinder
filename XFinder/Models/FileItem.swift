@@ -102,7 +102,14 @@ struct FileItem: Identifiable, Hashable, Sendable {
 
     var formattedModificationDate: String {
         guard let modificationDate else { return "—" }
-        return modificationDate.formatted(date: .numeric, time: .shortened)
+        return modificationDate.formatted(
+            Date.FormatStyle()
+                .day(.twoDigits)
+                .month(.twoDigits)
+                .year()
+                .hour(.twoDigits(amPM: .omitted))
+                .minute(.twoDigits)
+        )
     }
 }
 
