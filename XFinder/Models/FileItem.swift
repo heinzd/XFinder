@@ -85,5 +85,5 @@ struct SidebarLocation: Identifiable, Hashable, Sendable {
     var isCustom = false
     var opensExternally = false
 
-    var id: URL { url.standardizedFileURL }
+    var id: URL { url.isFileURL ? url.standardizedFileURL : url }
 }
