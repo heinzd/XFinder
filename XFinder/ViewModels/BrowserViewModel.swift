@@ -475,6 +475,25 @@ final class BrowserViewModel: ObservableObject {
         }
     }
 
+    func createFolder(with selection: Set<FileItem.ID>) {
+        let itemsToMove = selection.compactMap { item(withID: $0) }
+        guard !itemsToMove.isEmpty else { return }
+
+        do {
+            let newURL = try fileSystem.createFolder(
+                in: currentURL,
+                baseName: text("New Folder With Items")
+            )
+            _ = try fileSystem.moveItems(itemsToMove.map(\.url), to: newURL)
+            reload()
+            selectedItemIDs = [newURL.standardizedFileURL]
+            renameTarget = selectedItem
+        } catch {
+            reload()
+            present(error)
+        }
+    }
+
     func createFile(_ kind: NewFileKind) {
         do {
             let newURL = try fileSystem.createFile(
@@ -671,6 +690,15 @@ final class BrowserViewModel: ObservableObject {
         language == .german ? "\(count) ausgewählt" : "\(count) selected"
     }
 
+    func newFolderWithSelectionTitle(_ count: Int) -> String {
+        if language == .german {
+            let object = count == 1 ? "Objekt" : "Objekte"
+            return "Neuer Ordner mit Auswahl (\(count) \(object))"
+        }
+        let item = count == 1 ? "Item" : "Items"
+        return "New Folder with Selection (\(count) \(item))"
+    }
+
     func renameTitle(for name: String) -> String {
         language == .german ? "„\(name)“ umbenennen" : "Rename “\(name)”"
     }
@@ -686,6 +714,8 @@ final class BrowserViewModel: ObservableObject {
                 errorMessage = "Die Vorlage für .\(pathExtension)-Dateien fehlt."
             case .cannotCopyIntoItself(let name):
                 errorMessage = "„\(name)“ kann nicht in sich selbst kopiert werden."
+            case .itemNoLongerExists(let name):
+                errorMessage = "„\(name)“ ist nicht mehr vorhanden. Bitte den Ordner neu laden und erneut versuchen."
             }
             return
         }
@@ -704,6 +734,7 @@ final class BrowserViewModel: ObservableObject {
         "Configure Full Disk Access…": "Vollzugriff auf Festplatte konfigurieren …",
         "Done": "Fertig",
         "New Folder": "Neuer Ordner",
+        "New Folder With Items": "Neuer Ordner mit Objekten",
         "New File": "Neue Datei",
         "Text Document (.txt)": "Textdokument (.txt)",
         "Rich Text Document (.rtf)": "Rich-Text-Dokument (.rtf)",
