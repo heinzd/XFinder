@@ -136,6 +136,10 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     private let albumLabel = NSTextField(labelWithString: "")
     private var metadataTask: Task<Void, Never>?
     private var panel: NSPanel?
+    private weak var playlistWindow: NSWindow?
+    private var playlistDock: DockedPair?
+    private var undockedPlayerMinSize: NSSize?
+    private var displayedArtworkData: Data?
     private var playOrder: [URL] = []
     private var currentIndex = 0
     private var isPlayingPlaylist = false
@@ -175,6 +179,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     }
 
     func setPlaylist(_ items: [FileItem], root: URL, language: AppLanguage) {
+        detachPlayer()
         stopPlayback()
         panel?.orderOut(nil)
         self.items = items
@@ -241,6 +246,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     }
 
     func playSingle(_ url: URL, language: AppLanguage) {
+        detachPlayer()
         isPlayingPlaylist = false
         selectedID = nil
         showPlayer(url, language: language)
@@ -253,7 +259,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
 
     private func showPlayer(_ url: URL, language: AppLanguage, revealPlayer: Bool = true) {
         buildPanelIfNeeded()
-        panel?.title = url.lastPathComponent
+        dockPlayerIfNeeded()
         removeEndObserver()
         let item = AVPlayerItem(url: url)
         player.replaceCurrentItem(with: item)
@@ -271,30 +277,34 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
                 }
             }
         }
-        trackLabel.stringValue = url.lastPathComponent
-        trackLabel.toolTip = url.path
-        artistLabel.stringValue = ""
-        albumLabel.stringValue = ""
-        artworkView.image = NSImage(
-            systemSymbolName: "music.note",
-            accessibilityDescription: language == .german ? "Kein Cover" : "No artwork"
-        )
-        artworkView.contentTintColor = .secondaryLabelColor
         metadataTask = Task { [weak self] in
             let metadata = await Self.readAudioMetadata(from: url)
             guard !Task.isCancelled, let self,
                   self.activePlaybackID == playbackID else { return }
-            self.trackLabel.stringValue = metadata.title ?? url.lastPathComponent
-            self.artistLabel.stringValue = metadata.artist ?? ""
-            self.albumLabel.stringValue = metadata.album ?? ""
-            if let data = metadata.artwork, let cover = NSImage(data: data) {
-                self.artworkView.contentTintColor = nil
-                self.artworkView.image = cover
+            // Keep the previous presentation until the complete next snapshot is ready.
+            let artworkChanged = self.displayedArtworkData != metadata.artwork || self.artworkView.image == nil
+            let cover = artworkChanged ? metadata.artwork.flatMap { NSImage(data: $0) } : nil
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0
+                context.allowsImplicitAnimation = false
+                self.panel?.title = url.lastPathComponent
+                self.trackLabel.stringValue = metadata.title ?? url.lastPathComponent
+                self.trackLabel.toolTip = url.path
+                self.artistLabel.stringValue = metadata.artist ?? ""
+                self.albumLabel.stringValue = metadata.album ?? ""
+                if artworkChanged {
+                    self.displayedArtworkData = metadata.artwork
+                    self.artworkView.contentTintColor = cover == nil ? .secondaryLabelColor : nil
+                    self.artworkView.image = cover ?? NSImage(
+                        systemSymbolName: "music.note",
+                        accessibilityDescription: language == .german ? "Kein Cover" : "No artwork"
+                    )
+                }
+                self.panel?.contentView?.layoutSubtreeIfNeeded()
             }
-        }
-        // Keep focus in the table so arrows and subsequent clicks select tracks.
-        if revealPlayer {
-            panel?.orderFront(nil)
+            if revealPlayer {
+                self.panel?.orderFront(nil)
+            }
         }
         player.play()
         isPlaybackActive = true
@@ -333,8 +343,11 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
             artworkView.widthAnchor.constraint(equalTo: stack.widthAnchor),
             artworkView.heightAnchor.constraint(greaterThanOrEqualToConstant: 64),
             trackLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            trackLabel.heightAnchor.constraint(equalToConstant: 22),
             artistLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            artistLabel.heightAnchor.constraint(equalToConstant: 17),
             albumLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            albumLabel.heightAnchor.constraint(equalToConstant: 17),
             playerView.widthAnchor.constraint(equalTo: stack.widthAnchor),
             playerView.heightAnchor.constraint(equalToConstant: 52)
         ])
@@ -387,6 +400,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     }
 
     func closePlaylist() {
+        detachPlayer()
         if isPlayingPlaylist {
             stopPlayback()
             panel?.orderOut(nil)
@@ -398,7 +412,54 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     }
 
     func windowWillClose(_ notification: Notification) {
+        detachPlayer()
         stopPlayback()
+    }
+
+    func setPlaylistWindow(_ window: NSWindow) {
+        playlistWindow = window
+        if isPlayingPlaylist { dockPlayerIfNeeded() }
+    }
+
+    private func detachPlayer() {
+        playlistDock?.invalidate()
+        playlistDock = nil
+        if let undockedPlayerMinSize { panel?.minSize = undockedPlayerMinSize }
+        undockedPlayerMinSize = nil
+    }
+
+    private func dockPlayerIfNeeded() {
+        guard isPlayingPlaylist, let playlistWindow, playlistWindow.isVisible,
+              let panel, !playlistWindow.styleMask.contains(.fullScreen) else { return }
+        if playlistDock?.partner(of: panel) === playlistWindow { return }
+        detachPlayer()
+        undockedPlayerMinSize = panel.minSize
+        panel.minSize = NSSize(
+            width: panel.minSize.width,
+            height: max(panel.minSize.height, playlistWindow.minSize.height)
+        )
+
+        let width = panel.frame.width
+        let screen = playlistWindow.screen?.visibleFrame
+        var playlistFrame = playlistWindow.frame
+        // Prefer the right edge; use the left edge if that is the available space.
+        let useLeft = screen.map {
+            playlistFrame.maxX + width > $0.maxX && playlistFrame.minX - width >= $0.minX
+        } ?? false
+        if !useLeft, let screen, playlistFrame.maxX + width > screen.maxX {
+            playlistFrame.origin.x = max(screen.minX, screen.maxX - playlistFrame.width - width)
+            playlistWindow.setFrame(playlistFrame, display: true)
+        }
+        panel.setFrame(NSRect(
+            x: useLeft ? playlistFrame.minX - width : playlistFrame.maxX,
+            y: playlistFrame.minY, width: width, height: playlistFrame.height
+        ), display: true)
+        playlistDock = DockedPair(
+            left: useLeft ? panel : playlistWindow,
+            right: useLeft ? playlistWindow : panel
+        ) { [weak self] in
+            self?.detachPlayer()
+        }
     }
 }
 

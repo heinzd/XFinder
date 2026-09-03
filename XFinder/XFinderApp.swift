@@ -229,7 +229,7 @@ final class BrowserWindowDocking {
 }
 
 @MainActor
-private final class DockedPair: NSObject {
+final class DockedPair: NSObject {
     private weak var left: NSWindow?
     private weak var right: NSWindow?
     private var adjusting = false
@@ -277,8 +277,12 @@ private final class DockedPair: NSObject {
     }
 
     @objc private func detach(_ notification: Notification) {
-        NotificationCenter.default.removeObserver(self)
+        invalidate()
         onDetach()
+    }
+
+    func invalidate() {
+        NotificationCenter.default.removeObserver(self)
     }
 
     deinit {

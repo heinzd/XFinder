@@ -258,6 +258,9 @@ struct PlaylistView: View {
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .navigationTitle(player.text("Playlist", "Wiedergabeliste"))
+        .background(BrowserWindowReader { window in
+            player.setPlaylistWindow(window)
+        })
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
                 Button(action: player.first) {

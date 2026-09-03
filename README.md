@@ -47,6 +47,10 @@ XFinder is a native file manager for macOS with a custom SwiftUI interface.
 - The audio player uses normal window ordering so other windows and applications
   can cover it. Automatic track changes do not raise the player. Stop keeps the
   selected playlist track; Play starts it again from the beginning.
+- During playlist playback, the player docks beside the playlist with matching
+  window height. Moving or resizing either window keeps the pair aligned; single
+  MP3 playback detaches the player. Cover art and metadata update together after
+  loading, without an intermediate placeholder or changes to the text-row heights.
 - Drag sources explicitly provide file URLs; drop targets request copy operations.
   Unreadable drag data and same-folder copies produce an explanatory message.
 - Standard macOS text size with reduced row spacing
