@@ -30,6 +30,9 @@ XFinder is a native file manager for macOS with a custom SwiftUI interface.
 - Double-click an image or MP3 file to open the shared Quick Look media viewer.
   MP3 previews provide playback controls. Selecting another image or MP3 updates
   the open viewer without taking focus from the file table.
+- Build and immediately play a temporary MP3 playlist from the current folder and
+  all its subfolders using the toolbar button. The compact player advances at the
+  end of each track and remembers the selected serial or random order.
 - Drag sources explicitly provide file URLs; drop targets request copy operations.
   Unreadable drag data and same-folder copies produce an explanatory message.
 - Standard macOS text size with reduced row spacing

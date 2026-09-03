@@ -170,6 +170,14 @@ private struct BrowserToolbar: ToolbarContent {
             }
             .help(model.text("Open Current Folder in Terminal"))
 
+            Button(action: model.playCurrentFolderPlaylist) {
+                Image(systemName: "music.note.list")
+            }
+            .disabled(model.isBuildingPlaylist)
+            .help(model.language == .german
+                ? "Temporäre MP3-Wiedergabeliste abspielen"
+                : "Play Temporary MP3 Playlist")
+
             Button {
                 model.isShowingSettings = true
             } label: {
@@ -179,7 +187,7 @@ private struct BrowserToolbar: ToolbarContent {
         }
 
         ToolbarItem(placement: .automatic) {
-            if model.isSearching {
+            if model.isSearching || model.isBuildingPlaylist {
                 ProgressView()
                     .controlSize(.small)
             }

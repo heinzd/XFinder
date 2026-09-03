@@ -75,6 +75,37 @@ struct FileSystemService {
         }
     }
 
+    func mp3Files(
+        recursivelyIn root: URL,
+        showHiddenFiles: Bool
+    ) throws -> [URL] {
+        var options: FileManager.DirectoryEnumerationOptions = [.skipsPackageDescendants]
+        if !showHiddenFiles {
+            options.insert(.skipsHiddenFiles)
+        }
+        let keys: [URLResourceKey] = [.isRegularFileKey, .isHiddenKey, .contentTypeKey]
+        guard let enumerator = fileManager.enumerator(
+            at: root,
+            includingPropertiesForKeys: keys,
+            options: options,
+            errorHandler: { _, _ in true }
+        ) else { return [] }
+
+        var urls: [URL] = []
+        for case let url as URL in enumerator {
+            try Task.checkCancellation()
+            guard let values = try? url.resourceValues(forKeys: Set(keys)) else { continue }
+            if !showHiddenFiles, values.isHidden == true { continue }
+            guard values.isRegularFile == true else { continue }
+            let isMP3 = values.contentType?.conforms(to: .mp3) == true
+                || url.pathExtension.caseInsensitiveCompare("mp3") == .orderedSame
+            if isMP3 { urls.append(url.standardizedFileURL) }
+        }
+        return urls.sorted {
+            $0.path.localizedStandardCompare($1.path) == .orderedAscending
+        }
+    }
+
     func requiresExecutionConfirmation(for item: FileItem) -> Bool {
         guard !item.isDirectory, !item.isPackage else { return false }
 
