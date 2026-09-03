@@ -148,7 +148,9 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         playerView.player = player
         playerView.controlsStyle = .default
         playerView.showsFullScreenToggleButton = false
+        playerView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         artworkView.imageScaling = .scaleProportionallyUpOrDown
+        artworkView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         artworkView.setContentHuggingPriority(.defaultLow, for: .vertical)
         artworkView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         trackLabel.font = .systemFont(ofSize: 17, weight: .semibold)
@@ -157,6 +159,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         for label in [trackLabel, artistLabel, albumLabel] {
             label.lineBreakMode = .byTruncatingMiddle
             label.alignment = .center
+            label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
             label.setContentHuggingPriority(.required, for: .vertical)
             label.setContentCompressionResistancePriority(.required, for: .vertical)
         }
@@ -277,15 +280,17 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     private func buildPanelIfNeeded() {
         guard panel == nil else { return }
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 600),
+            contentRect: NSRect(x: 0, y: 0, width: 240, height: 400),
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered, defer: false
         )
         panel.isReleasedWhenClosed = false
         panel.isFloatingPanel = true
+        panel.level = .floating
+        panel.isMovableByWindowBackground = true
         panel.hidesOnDeactivate = false
         panel.delegate = self
-        panel.contentMinSize = NSSize(width: 340, height: 400)
+        panel.contentMinSize = NSSize(width: 200, height: 280)
         let content = NSVisualEffectView()
         content.material = .underWindowBackground
         content.blendingMode = .behindWindow
@@ -298,12 +303,12 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         stack.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 20),
-            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -20),
-            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 18),
-            stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -18),
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 12),
+            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -12),
+            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 12),
+            stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -12),
             artworkView.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            artworkView.heightAnchor.constraint(greaterThanOrEqualToConstant: 180),
+            artworkView.heightAnchor.constraint(greaterThanOrEqualToConstant: 64),
             trackLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
             artistLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
             albumLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
