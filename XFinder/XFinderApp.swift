@@ -139,7 +139,7 @@ final class BrowserCommandContext: NSObject, ObservableObject {
     private override init() {
         super.init()
         for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification,
-                     NSWindow.didBeginSheetNotification, NSWindow.didEndSheetNotification] {
+                     NSWindow.willBeginSheetNotification, NSWindow.didEndSheetNotification] {
             NotificationCenter.default.addObserver(
                 self, selector: #selector(focusChanged(_:)), name: name, object: nil
             )
