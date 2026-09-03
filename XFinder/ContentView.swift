@@ -5,6 +5,8 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var model: BrowserViewModel
     @State private var searchText = ""
+    @StateObject private var windowHandle = BrowserWindowHandle()
+    let dockingRequestID: UUID?
 
     var body: some View {
         NavigationSplitView {
@@ -20,9 +22,13 @@ struct ContentView: View {
             }
             .background(Color(nsColor: .controlBackgroundColor))
         }
+        .background(BrowserWindowReader { window in
+            windowHandle.window = window
+            BrowserWindowDocking.shared.attach(window, requestID: dockingRequestID)
+        })
         .navigationTitle(model.currentURL.lastPathComponentOrRoot)
         .toolbar {
-            BrowserToolbar()
+            BrowserToolbar(windowHandle: windowHandle)
         }
         .searchable(
             text: $searchText,
@@ -93,6 +99,8 @@ struct ContentView: View {
 
 private struct BrowserToolbar: ToolbarContent {
     @EnvironmentObject private var model: BrowserViewModel
+    @Environment(\.openWindow) private var openWindow
+    let windowHandle: BrowserWindowHandle
 
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
@@ -116,6 +124,26 @@ private struct BrowserToolbar: ToolbarContent {
         }
 
         ToolbarItemGroup(placement: .automatic) {
+            Button {
+                guard let window = windowHandle.window else { return }
+                if window.styleMask.contains(.fullScreen) {
+                    model.errorMessage = model.language == .german
+                        ? "Bitte zuerst den Vollbildmodus verlassen."
+                        : "Please leave full screen before docking a second window."
+                    return
+                }
+                if let partner = BrowserWindowDocking.shared.partner(of: window) {
+                    partner.makeKeyAndOrderFront(nil)
+                    return
+                }
+                let request = DockedBrowserRequest(startPath: model.currentURL.path)
+                guard BrowserWindowDocking.shared.prepare(request, beside: window) else { return }
+                openWindow(id: "browser", value: request)
+            } label: {
+                Image(systemName: "rectangle.split.2x1")
+            }
+            .help(model.language == .german ? "Zweites Fenster andocken" : "Dock Second Window")
+
             Button(action: model.createFolder) {
                 Image(systemName: "folder.badge.plus")
             }

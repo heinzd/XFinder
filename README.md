@@ -6,6 +6,12 @@ XFinder is a native file manager for macOS with a custom SwiftUI interface.
 
 - Folder navigation with Back, Forward, and Enclosing Folder actions
 - Native macOS window toolbar with navigation, file actions, and search
+- “Dock Second Window” toolbar button opens the current folder in an independent
+  window and tiles both windows on the current screen. Moving either window keeps
+  the pair together; resizing aligns their adjacent edges and heights. Clicking the
+  button again focuses the existing partner. Closing either window or entering full
+  screen releases the pair. Navigation, selection, search, and menu actions belong
+  to the active window; internal XFinder-to-XFinder drops remain blocked.
 - Sidebar with standard, imported Finder, and clearly separated XFinder favorites
 - Add selected folders to XFinder favorites from the context menu
 - Locations for AirDrop, iCloud Drive, Trash, connected iPhones/media devices,
