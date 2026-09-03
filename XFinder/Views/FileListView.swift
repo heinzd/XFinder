@@ -124,7 +124,7 @@ struct FileListView: View {
         } primaryAction: { selection in
             openFirst(in: selection)
         }
-        .onKeyPress(.space) { press in
+        .onKeyPress(.space, phases: .down) { press in
             guard press.modifiers.isEmpty, model.canPreviewSelection else { return .ignored }
             model.previewSelection()
             return .handled
