@@ -75,35 +75,43 @@ struct FileSystemService {
         }
     }
 
-    func mp3Files(
-        recursivelyIn root: URL,
-        showHiddenFiles: Bool
-    ) throws -> [URL] {
-        var options: FileManager.DirectoryEnumerationOptions = [.skipsPackageDescendants]
-        if !showHiddenFiles {
-            options.insert(.skipsHiddenFiles)
-        }
-        let keys: [URLResourceKey] = [.isRegularFileKey, .isHiddenKey, .contentTypeKey]
-        guard let enumerator = fileManager.enumerator(
-            at: root,
-            includingPropertiesForKeys: keys,
-            options: options,
-            errorHandler: { _, _ in true }
-        ) else { return [] }
+    /// Breadth-first traversal: direct songs first, then each folder's songs
+    /// together, with sibling folders and filenames in natural order.
+    func mp3PlaylistItems(in root: URL, showHiddenFiles: Bool) throws -> [FileItem] {
+        var pending = [root.standardizedFileURL]
+        var nextDirectory = 0
+        var result: [FileItem] = []
+        let keys = itemResourceKeys.union([.isSymbolicLinkKey])
+        let options: FileManager.DirectoryEnumerationOptions = showHiddenFiles ? [] : [.skipsHiddenFiles]
 
-        var urls: [URL] = []
-        for case let url as URL in enumerator {
+        while nextDirectory < pending.count {
             try Task.checkCancellation()
-            guard let values = try? url.resourceValues(forKeys: Set(keys)) else { continue }
-            if !showHiddenFiles, values.isHidden == true { continue }
-            guard values.isRegularFile == true else { continue }
-            let isMP3 = values.contentType?.conforms(to: .mp3) == true
-                || url.pathExtension.caseInsensitiveCompare("mp3") == .orderedSame
-            if isMP3 { urls.append(url.standardizedFileURL) }
+            let directory = pending[nextDirectory]
+            nextDirectory += 1
+            let children: [URL]
+            do {
+                children = try fileManager.contentsOfDirectory(
+                    at: directory, includingPropertiesForKeys: Array(keys), options: options
+                ).sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+            } catch {
+                if directory == root.standardizedFileURL { throw error }
+                continue
+            }
+            for url in children {
+                try Task.checkCancellation()
+                guard let values = try? url.resourceValues(forKeys: keys) else { continue }
+                if !showHiddenFiles, values.isHidden == true { continue }
+                if values.isDirectory == true {
+                    // Avoid packages and symlink cycles or paths outside the chosen tree.
+                    if values.isPackage != true, values.isSymbolicLink != true {
+                        pending.append(url)
+                    }
+                } else if url.pathExtension.caseInsensitiveCompare("mp3") == .orderedSame {
+                    result.append(makeItem(for: url, values: values))
+                }
+            }
         }
-        return urls.sorted {
-            $0.path.localizedStandardCompare($1.path) == .orderedAscending
-        }
+        return result
     }
 
     func requiresExecutionConfirmation(for item: FileItem) -> Bool {

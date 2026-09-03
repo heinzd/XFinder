@@ -170,13 +170,17 @@ private struct BrowserToolbar: ToolbarContent {
             }
             .help(model.text("Open Current Folder in Terminal"))
 
-            Button(action: model.playCurrentFolderPlaylist) {
+            Button {
+                model.playCurrentFolderPlaylist {
+                    openWindow(id: "playlist")
+                }
+            } label: {
                 Image(systemName: "music.note.list")
             }
             .disabled(model.isBuildingPlaylist)
             .help(model.language == .german
-                ? "Temporäre MP3-Wiedergabeliste abspielen"
-                : "Play Temporary MP3 Playlist")
+                ? "MP3-Playlist aus ausgewähltem oder aktuellem Ordner"
+                : "MP3 Playlist from Selected or Current Folder")
 
             Button {
                 model.isShowingSettings = true
@@ -192,6 +196,106 @@ private struct BrowserToolbar: ToolbarContent {
                     .controlSize(.small)
             }
         }
+    }
+}
+
+struct PlaylistView: View {
+    @ObservedObject private var player = PlaylistPlayerController.shared
+
+    private var selection: Binding<FileItem.ID?> {
+        Binding(
+            get: { player.selectedID },
+            set: { if let id = $0 { player.play(id) } }
+        )
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Table(player.items, selection: selection) {
+                TableColumn(player.text("Name", "Name")) { item in
+                    HStack(spacing: 4) {
+                        Image(systemName: player.selectedID == item.id ? "speaker.wave.2.fill" : "music.note")
+                            .frame(width: 16)
+                        Text(item.name)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+                .width(min: 200, ideal: 330)
+
+                TableColumn(player.text("Album / Folder", "Album / Ordner")) { item in
+                    Text(player.album(for: item))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .width(min: 130, ideal: 230)
+
+                TableColumn(player.text("Size", "Größe")) { item in
+                    Text(item.formattedSize)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .width(min: 70, ideal: 90, max: 120)
+            }
+            .font(.body)
+            .controlSize(.mini)
+            .environment(\.defaultMinListRowHeight, 14)
+            .tableStyle(.inset(alternatesRowBackgrounds: true))
+
+            Divider()
+            HStack {
+                Text("\(player.items.count) " + player.text("tracks", "Titel"))
+                Spacer()
+                Text(player.rootURL?.path ?? "")
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .font(.caption)
+            .padding(.horizontal, 12)
+            .frame(height: 26)
+        }
+        .background(Color(nsColor: .controlBackgroundColor))
+        .navigationTitle(player.text("Playlist", "Wiedergabeliste"))
+        .toolbar {
+            ToolbarItemGroup(placement: .automatic) {
+                Button(action: player.first) {
+                    Label(player.text("Beginning", "Anfang"), systemImage: "backward.end.fill")
+                }
+                .help(player.text("First track", "Erster Titel"))
+                .disabled(player.items.isEmpty)
+
+                Button(action: player.previous) {
+                    Label(player.text("Previous", "Zurück"), systemImage: "backward.fill")
+                }
+                .help(player.text("Previous track", "Vorheriger Titel"))
+                .disabled(!player.canGoBack)
+
+                Button(action: player.next) {
+                    Label(player.text("Next", "Vor"), systemImage: "forward.fill")
+                }
+                .help(player.text("Next track", "Nächster Titel"))
+                .disabled(!player.canGoForward)
+
+                Button(action: player.last) {
+                    Label(player.text("End", "Ende"), systemImage: "forward.end.fill")
+                }
+                .help(player.text("Last track", "Letzter Titel"))
+                .disabled(player.items.isEmpty)
+
+                Button(action: player.toggleOrder) {
+                    Label(
+                        player.isRandom ? player.text("Random", "Zufall") : player.text("In Order", "Reihenfolge"),
+                        systemImage: player.isRandom ? "shuffle" : "list.number"
+                    )
+                }
+                .help(player.isRandom
+                    ? player.text("Random playback — switch to in order", "Zufällige Wiedergabe – auf Reihenfolge umschalten")
+                    : player.text("Playback in order — switch to random", "Wiedergabe in Reihenfolge – auf Zufall umschalten"))
+            }
+        }
+        .onDisappear { player.closePlaylist() }
     }
 }
 

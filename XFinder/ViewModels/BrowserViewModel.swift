@@ -109,144 +109,185 @@ private final class QuickLookController: NSObject, @preconcurrency QLPreviewPane
 }
 
 @MainActor
-private final class PlaylistPlayerController: NSObject, NSWindowDelegate {
+final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelegate {
     static let shared = PlaylistPlayerController()
+
+    @Published private(set) var items: [FileItem] = []
+    @Published private(set) var selectedID: URL?
+    @Published private(set) var rootURL: URL?
+    @Published private(set) var language: AppLanguage = .english
+    @Published private(set) var isRandom: Bool {
+        didSet { UserDefaults.standard.set(isRandom, forKey: Self.randomOrderKey) }
+    }
 
     private let player = AVPlayer()
     private let playerView = AVPlayerView()
     private let trackLabel = NSTextField(labelWithString: "")
-    private let orderControl = NSSegmentedControl(
-        labels: ["Serial", "Random"],
-        trackingMode: .selectOne,
-        target: nil,
-        action: nil
-    )
     private var panel: NSPanel?
-    private var sourceURLs: [URL] = []
     private var playOrder: [URL] = []
     private var currentIndex = 0
-    private var isRandom: Bool {
-        didSet { UserDefaults.standard.set(isRandom, forKey: Self.randomOrderKey) }
-    }
+    private var isPlayingPlaylist = false
+    private var endObserver: NSObjectProtocol?
     private static let randomOrderKey = "playlistUsesRandomOrder"
 
     private override init() {
         isRandom = UserDefaults.standard.bool(forKey: Self.randomOrderKey)
         super.init()
-        orderControl.target = self
-        orderControl.action = #selector(changeOrder(_:))
         playerView.player = player
         playerView.controlsStyle = .default
-        playerView.videoGravity = .resizeAspect
         trackLabel.lineBreakMode = .byTruncatingMiddle
         trackLabel.alignment = .center
     }
 
-    func show(_ urls: [URL], language: AppLanguage) {
-        guard !urls.isEmpty else { return }
-        buildPanelIfNeeded()
-        panel?.title = language == .german ? "XFinder-Wiedergabeliste" : "XFinder Playlist"
-        orderControl.setLabel(language == .german ? "Seriell" : "Serial", forSegment: 0)
-        orderControl.setLabel(language == .german ? "Zufällig" : "Random", forSegment: 1)
-        orderControl.selectedSegment = isRandom ? 1 : 0
-        sourceURLs = urls
+    func setPlaylist(_ items: [FileItem], root: URL, language: AppLanguage) {
+        stopPlayback()
+        panel?.orderOut(nil)
+        self.items = items
+        rootURL = root
+        self.language = language
+        let urls = items.map(\.id)
         playOrder = isRandom ? urls.shuffled() : urls
         currentIndex = 0
-        playCurrentItem()
-        panel?.center()
-        panel?.makeKeyAndOrderFront(nil)
+    }
+
+    func text(_ english: String, _ german: String) -> String {
+        language == .german ? german : english
+    }
+
+    func album(for item: FileItem) -> String {
+        let parent = item.url.deletingLastPathComponent().standardizedFileURL
+        guard let root = rootURL?.standardizedFileURL else { return parent.lastPathComponent }
+        if parent == root { return root.lastPathComponent }
+        let prefix = root.path.hasSuffix("/") ? root.path : root.path + "/"
+        return parent.path.hasPrefix(prefix) ? String(parent.path.dropFirst(prefix.count)) : parent.path
+    }
+
+    var canGoBack: Bool { !items.isEmpty && (selectedID == nil || currentIndex > 0) }
+    var canGoForward: Bool { !items.isEmpty && (selectedID == nil || currentIndex + 1 < playOrder.count) }
+
+    func play(_ id: URL) {
+        guard let index = playOrder.firstIndex(of: id) else { return }
+        currentIndex = index
+        isPlayingPlaylist = true
+        selectedID = id
+        showPlayer(id, language: language)
+    }
+
+    func first() { if let item = items.first { play(item.id) } }
+    func last() { if let item = items.last { play(item.id) } }
+    func previous() {
+        guard canGoBack else { return }
+        play(playOrder[selectedID == nil ? 0 : currentIndex - 1])
+    }
+    func next() {
+        guard canGoForward else { return }
+        play(playOrder[selectedID == nil ? 0 : currentIndex + 1])
+    }
+
+    func toggleOrder() {
+        let current = selectedID
+        isRandom.toggle()
+        let urls = items.map(\.id)
+        if isRandom, let current {
+            playOrder = [current] + urls.filter { $0 != current }.shuffled()
+        } else {
+            playOrder = isRandom ? urls.shuffled() : urls
+        }
+        currentIndex = current.flatMap { playOrder.firstIndex(of: $0) } ?? 0
+    }
+
+    func playSingle(_ url: URL, language: AppLanguage) {
+        isPlayingPlaylist = false
+        selectedID = nil
+        showPlayer(url, language: language)
+    }
+
+    func updateSingleIfVisible(_ url: URL, language: AppLanguage) {
+        guard panel?.isVisible == true, !isPlayingPlaylist else { return }
+        playSingle(url, language: language)
+    }
+
+    private func showPlayer(_ url: URL, language: AppLanguage) {
+        buildPanelIfNeeded()
+        panel?.title = language == .german ? "XFinder – MP3-Player" : "XFinder – MP3 Player"
+        removeEndObserver()
+        let item = AVPlayerItem(url: url)
+        player.replaceCurrentItem(with: item)
+        endObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
+        ) { [weak self] notification in
+            MainActor.assumeIsolated {
+                guard let self, self.isPlayingPlaylist,
+                      let finishedItem = notification.object as? AVPlayerItem,
+                      finishedItem === self.player.currentItem else { return }
+                self.next()
+            }
+        }
+        trackLabel.stringValue = url.lastPathComponent
+        trackLabel.toolTip = url.path
+        // Keep focus in the table so arrows and subsequent clicks select tracks.
+        panel?.orderFront(nil)
+        player.play()
     }
 
     private func buildPanelIfNeeded() {
         guard panel == nil else { return }
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 150),
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 112),
             styleMask: [.titled, .closable, .utilityWindow],
-            backing: .buffered,
-            defer: false
+            backing: .buffered, defer: false
         )
         panel.isReleasedWhenClosed = false
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
         panel.delegate = self
-
-        let stack = NSStackView(views: [trackLabel, playerView, orderControl])
+        let content = NSView()
+        panel.contentView = content
+        let stack = NSStackView(views: [trackLabel, playerView])
         stack.orientation = .vertical
         stack.alignment = .centerX
         stack.spacing = 10
         stack.translatesAutoresizingMaskIntoConstraints = false
-        playerView.translatesAutoresizingMaskIntoConstraints = false
-        orderControl.translatesAutoresizingMaskIntoConstraints = false
-        panel.contentView?.addSubview(stack)
+        content.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: panel.contentView!.leadingAnchor, constant: 16),
-            stack.trailingAnchor.constraint(equalTo: panel.contentView!.trailingAnchor, constant: -16),
-            stack.topAnchor.constraint(equalTo: panel.contentView!.topAnchor, constant: 12),
-            stack.bottomAnchor.constraint(equalTo: panel.contentView!.bottomAnchor, constant: -12),
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
+            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 12),
+            stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -12),
+            trackLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
             playerView.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            playerView.heightAnchor.constraint(equalToConstant: 52),
-            orderControl.widthAnchor.constraint(equalToConstant: 210)
+            playerView.heightAnchor.constraint(equalToConstant: 52)
         ])
+        panel.center()
         self.panel = panel
     }
 
-    private func playCurrentItem() {
-        guard playOrder.indices.contains(currentIndex) else {
-            player.pause()
-            return
+    private func removeEndObserver() {
+        if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
+        endObserver = nil
+    }
+
+    private func stopPlayback() {
+        player.pause()
+        player.replaceCurrentItem(with: nil)
+        removeEndObserver()
+        isPlayingPlaylist = false
+        selectedID = nil
+    }
+
+    func closePlaylist() {
+        if isPlayingPlaylist {
+            stopPlayback()
+            panel?.orderOut(nil)
         }
-        NotificationCenter.default.removeObserver(
-            self,
-            name: .AVPlayerItemDidPlayToEndTime,
-            object: nil
-        )
-        let url = playOrder[currentIndex]
-        let item = AVPlayerItem(url: url)
-        player.replaceCurrentItem(with: item)
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(itemFinished(_:)),
-            name: .AVPlayerItemDidPlayToEndTime,
-            object: item
-        )
-        trackLabel.stringValue = "\(currentIndex + 1) / \(playOrder.count)  —  \(url.lastPathComponent)"
-        player.play()
-    }
-
-    @objc private func itemFinished(_ notification: Notification) {
-        guard currentIndex + 1 < playOrder.count else { return }
-        currentIndex += 1
-        playCurrentItem()
-    }
-
-    @objc private func changeOrder(_ sender: NSSegmentedControl) {
-        let currentURL = playOrder.indices.contains(currentIndex) ? playOrder[currentIndex] : nil
-        isRandom = sender.selectedSegment == 1
-        if isRandom, let currentURL {
-            playOrder = [currentURL] + sourceURLs.filter { $0 != currentURL }.shuffled()
-            currentIndex = 0
-        } else {
-            playOrder = sourceURLs
-            currentIndex = currentURL.flatMap { playOrder.firstIndex(of: $0) } ?? 0
-        }
-        updateTrackLabel()
-    }
-
-    private func updateTrackLabel() {
-        guard playOrder.indices.contains(currentIndex) else { return }
-        trackLabel.stringValue = "\(currentIndex + 1) / \(playOrder.count)  —  \(playOrder[currentIndex].lastPathComponent)"
+        items = []
+        playOrder = []
+        rootURL = nil
+        selectedID = nil
     }
 
     func windowWillClose(_ notification: Notification) {
-        player.pause()
-        player.replaceCurrentItem(with: nil)
-        sourceURLs = []
-        playOrder = []
-        NotificationCenter.default.removeObserver(
-            self,
-            name: .AVPlayerItemDidPlayToEndTime,
-            object: nil
-        )
+        stopPlayback()
     }
 }
 
@@ -268,9 +309,12 @@ final class BrowserViewModel: ObservableObject {
     @Published private var connectedDevices: [ConnectedMediaDevice] = []
     @Published var selectedItemIDs: Set<FileItem.ID> = [] {
         didSet {
-            guard selectedItemIDs != oldValue, let item = selectedItem,
-                  usesMediaPreview(item) else { return }
-            quickLookController.updateIfVisible([item.url])
+            guard selectedItemIDs != oldValue, let item = selectedItem else { return }
+            if isMP3(item) {
+                PlaylistPlayerController.shared.updateSingleIfVisible(item.url, language: language)
+            } else if usesMediaPreview(item) {
+                quickLookController.updateIfVisible([item.url])
+            }
         }
     }
     @Published var errorMessage: String?
@@ -570,6 +614,8 @@ final class BrowserViewModel: ObservableObject {
             navigate(to: item.url)
         } else if fileSystem.requiresExecutionConfirmation(for: item) {
             pendingExecutionItem = item
+        } else if isMP3(item) {
+            PlaylistPlayerController.shared.playSingle(item.url, language: language)
         } else if usesMediaPreview(item) {
             quickLookController.show([item.url])
         } else {
@@ -584,6 +630,13 @@ final class BrowserViewModel: ObservableObject {
         let values = try? item.url.resourceValues(forKeys: [.contentTypeKey])
         guard let type = values?.contentType else { return false }
         return type.conforms(to: .image) || type.conforms(to: .mp3)
+    }
+
+    private func isMP3(_ item: FileItem) -> Bool {
+        guard !item.isDirectory else { return false }
+        if UTType(filenameExtension: item.url.pathExtension)?.conforms(to: .mp3) == true { return true }
+        let values = try? item.url.resourceValues(forKeys: [.contentTypeKey])
+        return values?.contentType?.conforms(to: .mp3) == true
     }
 
     func confirmPendingExecution() {
@@ -850,6 +903,10 @@ final class BrowserViewModel: ObservableObject {
     }
 
     func previewSelection() {
+        if let item = selectedItem, isMP3(item) {
+            PlaylistPlayerController.shared.playSingle(item.url, language: language)
+            return
+        }
         let urls = selectedItems
             .filter { !$0.isDirectory }
             .map(\.url)
@@ -876,27 +933,28 @@ final class BrowserViewModel: ObservableObject {
         }
     }
 
-    func playCurrentFolderPlaylist() {
+    func playCurrentFolderPlaylist(openPlaylist: @escaping () -> Void) {
         guard !isBuildingPlaylist else { return }
-        let root = currentURL
+        let root = selectedItem.flatMap { $0.canNavigateInto ? $0.url : nil } ?? currentURL
         let includesHiddenFiles = showHiddenFiles
         isBuildingPlaylist = true
         Task {
             defer { isBuildingPlaylist = false }
             do {
-                let urls = try await Task.detached(priority: .userInitiated) {
-                    try FileSystemService().mp3Files(
-                        recursivelyIn: root,
+                let playlistItems = try await Task.detached(priority: .userInitiated) {
+                    try FileSystemService().mp3PlaylistItems(
+                        in: root,
                         showHiddenFiles: includesHiddenFiles
                     )
                 }.value
-                guard !urls.isEmpty else {
+                guard !playlistItems.isEmpty else {
                     errorMessage = language == .german
                         ? "In diesem Ordner und seinen Unterordnern wurden keine MP3-Dateien gefunden."
                         : "No MP3 files were found in this folder or its subfolders."
                     return
                 }
-                PlaylistPlayerController.shared.show(urls, language: language)
+                PlaylistPlayerController.shared.setPlaylist(playlistItems, root: root, language: language)
+                openPlaylist()
             } catch is CancellationError {
                 return
             } catch {

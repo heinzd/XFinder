@@ -30,6 +30,12 @@ struct XFinderApp: App {
         .commands {
             XFinderCommands()
         }
+
+        Window("Playlist", id: "playlist") {
+            PlaylistView()
+                .frame(minWidth: 620, minHeight: 360)
+        }
+        .defaultSize(width: 840, height: 560)
     }
 }
 
