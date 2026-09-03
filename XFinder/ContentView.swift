@@ -188,6 +188,13 @@ private struct BrowserToolbar: ToolbarContent {
                 Image(systemName: "gearshape")
             }
             .help(model.text("Settings"))
+
+            Button {
+                openWindow(id: "help")
+            } label: {
+                Label(model.language == .german ? "XFinder-Hilfe" : "XFinder Help", systemImage: "questionmark.circle")
+            }
+            .help(model.language == .german ? "XFinder-Hilfe" : "XFinder Help")
         }
 
         ToolbarItem(placement: .automatic) {

@@ -2,6 +2,29 @@
 
 XFinder is a native file manager for macOS with a custom SwiftUI interface.
 
+## User guide / Bedienungsanleitung
+
+Die ausführliche [deutsche Bedienungsanleitung](docs/Bedienung.md) erklärt Navigation,
+Dateiaktionen, Suche, Drag & Drop, angedockte Fenster, Vorschau, MP3-Player und Playlist.
+In der App öffnest du sie über **Hilfe > XFinder-Hilfe** (English: **Help > XFinder Help**)
+oder den Fragezeichen-Button. Das eigene Hilfefenster bietet Inhaltsverzeichnis,
+Volltextsuche über die Kapitel und kopierbaren Text; es funktioniert offline.
+
+The German user guide is available both on GitHub and inside the app, including
+known limitations and troubleshooting. In-app search filters chapters by title and content.
+
+For documentation changes, edit `docs/Bedienung.md`, then run:
+
+```bash
+python3 scripts/sync_help.py
+python3 scripts/sync_help.py --check
+```
+
+Commit both the Markdown and the generated section in `XFinder/XFinderApp.swift`.
+The generated text is compiled into the existing target, so no resource registration,
+build script, Python installation on the user's Mac, or Xcode project change is needed
+to build or use the app. Python is only needed when regenerating the manual.
+
 ## Current version: 0.4
 
 - Folder navigation with Back, Forward, and Enclosing Folder actions
