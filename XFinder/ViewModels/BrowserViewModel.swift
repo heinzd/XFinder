@@ -108,6 +108,13 @@ private final class QuickLookController: NSObject, @preconcurrency QLPreviewPane
     }
 }
 
+private struct AudioFileMetadata: Sendable {
+    var artwork: Data?
+    var title: String?
+    var artist: String?
+    var album: String?
+}
+
 @MainActor
 final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelegate {
     static let shared = PlaylistPlayerController()
@@ -123,6 +130,10 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     private let player = AVPlayer()
     private let playerView = AVPlayerView()
     private let trackLabel = NSTextField(labelWithString: "")
+    private let artworkView = NSImageView()
+    private let artistLabel = NSTextField(labelWithString: "")
+    private let albumLabel = NSTextField(labelWithString: "")
+    private var metadataTask: Task<Void, Never>?
     private var panel: NSPanel?
     private var playOrder: [URL] = []
     private var currentIndex = 0
@@ -136,8 +147,19 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         super.init()
         playerView.player = player
         playerView.controlsStyle = .default
-        trackLabel.lineBreakMode = .byTruncatingMiddle
-        trackLabel.alignment = .center
+        playerView.showsFullScreenToggleButton = false
+        artworkView.imageScaling = .scaleProportionallyUpOrDown
+        artworkView.setContentHuggingPriority(.defaultLow, for: .vertical)
+        artworkView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        trackLabel.font = .systemFont(ofSize: 17, weight: .semibold)
+        artistLabel.textColor = .secondaryLabelColor
+        albumLabel.textColor = .secondaryLabelColor
+        for label in [trackLabel, artistLabel, albumLabel] {
+            label.lineBreakMode = .byTruncatingMiddle
+            label.alignment = .center
+            label.setContentHuggingPriority(.required, for: .vertical)
+            label.setContentCompressionResistancePriority(.required, for: .vertical)
+        }
     }
 
     func setPlaylist(_ items: [FileItem], root: URL, language: AppLanguage) {
@@ -210,7 +232,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
 
     private func showPlayer(_ url: URL, language: AppLanguage) {
         buildPanelIfNeeded()
-        panel?.title = language == .german ? "XFinder – MP3-Player" : "XFinder – MP3 Player"
+        panel?.title = url.lastPathComponent
         removeEndObserver()
         let item = AVPlayerItem(url: url)
         player.replaceCurrentItem(with: item)
@@ -228,6 +250,25 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         }
         trackLabel.stringValue = url.lastPathComponent
         trackLabel.toolTip = url.path
+        artistLabel.stringValue = ""
+        albumLabel.stringValue = ""
+        artworkView.image = NSImage(
+            systemSymbolName: "music.note",
+            accessibilityDescription: language == .german ? "Kein Cover" : "No artwork"
+        )
+        artworkView.contentTintColor = .secondaryLabelColor
+        metadataTask = Task { [weak self] in
+            let metadata = await Self.readAudioMetadata(from: url)
+            guard !Task.isCancelled, let self,
+                  self.activePlaybackID == playbackID else { return }
+            self.trackLabel.stringValue = metadata.title ?? url.lastPathComponent
+            self.artistLabel.stringValue = metadata.artist ?? ""
+            self.albumLabel.stringValue = metadata.album ?? ""
+            if let data = metadata.artwork, let cover = NSImage(data: data) {
+                self.artworkView.contentTintColor = nil
+                self.artworkView.image = cover
+            }
+        }
         // Keep focus in the table so arrows and subsequent clicks select tracks.
         panel?.orderFront(nil)
         player.play()
@@ -236,28 +277,36 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     private func buildPanelIfNeeded() {
         guard panel == nil else { return }
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 112),
-            styleMask: [.titled, .closable, .utilityWindow],
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 600),
+            styleMask: [.titled, .closable, .resizable],
             backing: .buffered, defer: false
         )
         panel.isReleasedWhenClosed = false
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
         panel.delegate = self
-        let content = NSView()
+        panel.contentMinSize = NSSize(width: 340, height: 400)
+        let content = NSVisualEffectView()
+        content.material = .underWindowBackground
+        content.blendingMode = .behindWindow
+        content.state = .active
         panel.contentView = content
-        let stack = NSStackView(views: [trackLabel, playerView])
+        let stack = NSStackView(views: [artworkView, trackLabel, artistLabel, albumLabel, playerView])
         stack.orientation = .vertical
         stack.alignment = .centerX
         stack.spacing = 10
         stack.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
-            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
-            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 12),
-            stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -12),
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 20),
+            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -20),
+            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 18),
+            stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -18),
+            artworkView.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            artworkView.heightAnchor.constraint(greaterThanOrEqualToConstant: 180),
             trackLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            artistLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            albumLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
             playerView.widthAnchor.constraint(equalTo: stack.widthAnchor),
             playerView.heightAnchor.constraint(equalToConstant: 52)
         ])
@@ -266,9 +315,34 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     }
 
     private func removeEndObserver() {
+        metadataTask?.cancel()
+        metadataTask = nil
         activePlaybackID = nil
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
         endObserver = nil
+    }
+
+    private nonisolated static func readAudioMetadata(from url: URL) async -> AudioFileMetadata {
+        let asset = AVURLAsset(url: url)
+        guard let entries = try? await asset.load(.commonMetadata) else { return AudioFileMetadata() }
+        var result = AudioFileMetadata()
+        for entry in entries {
+            guard !Task.isCancelled else { return result }
+            guard let key = entry.commonKey else { continue }
+            switch key {
+            case .commonKeyArtwork:
+                if result.artwork == nil { result.artwork = try? await entry.load(.dataValue) }
+            case .commonKeyTitle:
+                if result.title == nil { result.title = try? await entry.load(.stringValue) }
+            case .commonKeyArtist:
+                if result.artist == nil { result.artist = try? await entry.load(.stringValue) }
+            case .commonKeyAlbumName:
+                if result.album == nil { result.album = try? await entry.load(.stringValue) }
+            default:
+                break
+            }
+        }
+        return result
     }
 
     private func stopPlayback() {
