@@ -130,7 +130,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
 
     private let player = AVPlayer()
     private let playerView = AVPlayerView()
-    private let trackLabel = NSTextField(labelWithString: "")
+    private let trackLabel = NSTextField(wrappingLabelWithString: "")
     private let artworkView = NSImageView()
     private let artistLabel = NSTextField(labelWithString: "")
     private let albumLabel = NSTextField(labelWithString: "")
@@ -176,6 +176,9 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
             label.setContentHuggingPriority(.required, for: .vertical)
             label.setContentCompressionResistancePriority(.required, for: .vertical)
         }
+        trackLabel.usesSingleLineMode = false
+        trackLabel.maximumNumberOfLines = 3
+        trackLabel.lineBreakMode = .byWordWrapping
     }
 
     func setPlaylist(_ items: [FileItem], root: URL, language: AppLanguage) {
@@ -277,14 +280,14 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
                 }
             }
         }
-        metadataTask = Task { [weak self] in
+        metadataTask = Task { @MainActor [weak self] in
             let metadata = await Self.readAudioMetadata(from: url)
             guard !Task.isCancelled, let self,
                   self.activePlaybackID == playbackID else { return }
             // Keep the previous presentation until the complete next snapshot is ready.
             let artworkChanged = self.displayedArtworkData != metadata.artwork || self.artworkView.image == nil
             let cover = artworkChanged ? metadata.artwork.flatMap { NSImage(data: $0) } : nil
-            NSAnimationContext.runAnimationGroup { context in
+            NSAnimationContext.runAnimationGroup({ context in
                 context.duration = 0
                 context.allowsImplicitAnimation = false
                 self.panel?.title = url.lastPathComponent
@@ -301,7 +304,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
                     )
                 }
                 self.panel?.contentView?.layoutSubtreeIfNeeded()
-            }
+            }, completionHandler: nil)
             if revealPlayer {
                 self.panel?.orderFront(nil)
             }
@@ -343,7 +346,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
             artworkView.widthAnchor.constraint(equalTo: stack.widthAnchor),
             artworkView.heightAnchor.constraint(greaterThanOrEqualToConstant: 64),
             trackLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            trackLabel.heightAnchor.constraint(equalToConstant: 22),
+            trackLabel.heightAnchor.constraint(equalToConstant: 66),
             artistLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
             artistLabel.heightAnchor.constraint(equalToConstant: 17),
             albumLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
