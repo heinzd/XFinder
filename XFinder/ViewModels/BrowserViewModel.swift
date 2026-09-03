@@ -128,6 +128,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     private var currentIndex = 0
     private var isPlayingPlaylist = false
     private var endObserver: NSObjectProtocol?
+    private var activePlaybackID: UUID?
     private static let randomOrderKey = "playlistUsesRandomOrder"
 
     private override init() {
@@ -213,13 +214,15 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         removeEndObserver()
         let item = AVPlayerItem(url: url)
         player.replaceCurrentItem(with: item)
+        let playbackID = UUID()
+        activePlaybackID = playbackID
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
-        ) { [weak self] notification in
-            MainActor.assumeIsolated {
+        ) { [weak self] _ in
+            // Only the Sendable playback ID crosses into the main actor.
+            Task { @MainActor [weak self] in
                 guard let self, self.isPlayingPlaylist,
-                      let finishedItem = notification.object as? AVPlayerItem,
-                      finishedItem === self.player.currentItem else { return }
+                      self.activePlaybackID == playbackID else { return }
                 self.next()
             }
         }
@@ -263,6 +266,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     }
 
     private func removeEndObserver() {
+        activePlaybackID = nil
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
         endObserver = nil
     }
