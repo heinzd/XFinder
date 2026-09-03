@@ -152,10 +152,9 @@ struct FileListView: View {
     }
 
     private var acceptedDropTypes: [UTType] {
-        [
-            .fileURL,
-            UTType(importedAs: BrowserViewModel.internalDragTypeIdentifier)
-        ]
+        // Accept file URLs only. The private origin marker is inspected on the
+        // provider by copyExternalDroppedItems; it is not an imported file type.
+        [.fileURL]
     }
 
     private func openFirst(in selection: Set<FileItem.ID>) {
