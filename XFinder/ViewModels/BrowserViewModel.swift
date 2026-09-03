@@ -186,7 +186,7 @@ final class BrowserViewModel: ObservableObject {
             locations.append(
                 SidebarLocation(
                     title: "AirDrop",
-                    systemImage: "airdrop",
+                    systemImage: "antenna.radiowaves.left.and.right",
                     url: airDropURL,
                     opensExternally: true
                 )
