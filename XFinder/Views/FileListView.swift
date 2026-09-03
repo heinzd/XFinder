@@ -124,7 +124,11 @@ struct FileListView: View {
         } primaryAction: { selection in
             openFirst(in: selection)
         }
-        .onDeleteCommand(perform: model.moveSelectionToTrash)
+        .onKeyPress(.space) { press in
+            guard press.modifiers.isEmpty, model.canPreviewSelection else { return .ignored }
+            model.previewSelection()
+            return .handled
+        }
     }
 
     private var sortedItems: [FileItem] {

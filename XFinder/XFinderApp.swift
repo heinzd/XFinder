@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 @MainActor
@@ -45,8 +46,9 @@ struct XFinderApp: App {
     }
 }
 
+/// Menus follow the key NSWindow, independently of SwiftUI's focused-view chain.
 private struct XFinderCommands: Commands {
-    @FocusedObject private var focusedModel: BrowserViewModel?
+    @ObservedObject private var context = BrowserCommandContext.shared
     @Environment(\.openWindow) private var openWindow
     @AppStorage("appLanguage") private var helpLanguage = AppLanguage.english.rawValue
 
@@ -56,94 +58,126 @@ private struct XFinderCommands: Commands {
                 openWindow(id: "help")
             }
         }
+        if let model = context.activeModel {
+            BrowserFileCommands(model: model)
+        }
+    }
+}
 
+private struct BrowserFileCommands: Commands {
+    @ObservedObject var model: BrowserViewModel
+
+    var body: some Commands {
         CommandGroup(after: .newItem) {
-            if let model = focusedModel {
-                Button(model.text("New Folder")) {
-                    model.createFolder()
-                }
+            Button(model.text("New Folder")) { model.createFolder() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
-
-                Divider()
-
-                Button(model.text("Rename…")) {
-                    model.beginRename()
-                }
+            Divider()
+            Button(model.text("Rename…")) { model.beginRename() }
                 .disabled(model.selectedItem == nil)
-
-                Button(model.text("Quick Look")) {
-                    model.previewSelection()
-                }
-                .keyboardShortcut(.space, modifiers: [])
+            // Space is handled by the file table so text fields retain normal typing.
+            Button(model.text("Quick Look")) { model.previewSelection() }
                 .disabled(!model.canPreviewSelection)
-
-                Button(model.text("Move to Trash")) {
-                    model.moveSelectionToTrash()
-                }
+            Button(model.text("Move to Trash")) { model.moveSelectionToTrash() }
                 .keyboardShortcut(.delete, modifiers: .command)
                 .disabled(model.selectedItems.isEmpty)
-            }
         }
 
-        CommandMenu(focusedModel?.text("View") ?? "View") {
-            if let model = focusedModel {
-                Toggle(model.text("Show hidden files"), isOn: Binding(
-                    get: { model.showHiddenFiles },
-                    set: { model.showHiddenFiles = $0 }
-                ))
-                    .keyboardShortcut(".", modifiers: [.command, .shift])
-
-                Button(model.text("Reload")) {
-                    model.reload()
-                }
+        CommandMenu(model.text("View")) {
+            Toggle(model.text("Show hidden files"), isOn: $model.showHiddenFiles)
+                .keyboardShortcut(".", modifiers: [.command, .shift])
+            Button(model.text("Reload")) { model.reload() }
                 .keyboardShortcut("r", modifiers: .command)
+        }
+
+        CommandMenu(model.text("Go")) {
+            Button(model.text("Back")) { model.goBack() }
+                .keyboardShortcut("[", modifiers: .command)
+                .disabled(!model.canGoBack)
+            Button(model.text("Forward")) { model.goForward() }
+                .keyboardShortcut("]", modifiers: .command)
+                .disabled(!model.canGoForward)
+            Button(model.text("Enclosing Folder")) { model.goUp() }
+                .keyboardShortcut(.upArrow, modifiers: .command)
+                .disabled(model.currentURL.path == "/")
+            Button(model.text("Home")) { model.navigate(to: .homeDirectory) }
+                .keyboardShortcut("h", modifiers: [.command, .shift])
+            Divider()
+            Button(model.text("Open Current Folder in Finder")) {
+                model.revealCurrentFolderInFinder()
             }
         }
 
-        CommandMenu(focusedModel?.text("Go") ?? "Go") {
-            if let model = focusedModel {
-                Button(model.text("Back")) { model.goBack() }
-                    .keyboardShortcut("[", modifiers: .command)
-                    .disabled(!model.canGoBack)
-
-                Button(model.text("Forward")) { model.goForward() }
-                    .keyboardShortcut("]", modifiers: .command)
-                    .disabled(!model.canGoForward)
-
-                Button(model.text("Enclosing Folder")) { model.goUp() }
-                    .keyboardShortcut(.upArrow, modifiers: .command)
-                    .disabled(model.currentURL.path == "/")
-
-                Button(model.text("Home")) { model.navigate(to: .homeDirectory) }
-                    .keyboardShortcut("h", modifiers: [.command, .shift])
-
-                Divider()
-
-                Button(model.text("Open Current Folder in Finder")) {
-                    model.revealCurrentFolderInFinder()
-                }
-            }
+        CommandGroup(replacing: .appSettings) {
+            Button(model.text("Settings") + "…") { model.isShowingSettings = true }
+                .keyboardShortcut(",", modifiers: .command)
         }
 
         CommandGroup(after: .appInfo) {
-            if let model = focusedModel {
-                Button(model.text("Settings") + "…") {
-                    model.isShowingSettings = true
-                }
-                .keyboardShortcut(",", modifiers: .command)
-
-                Divider()
-
-                Button(model.text("Show XFinder App in Finder")) {
-                    model.revealApplicationInFinder()
-                }
-
-                Button(model.text("Configure Full Disk Access…")) {
-                    model.openFullDiskAccessSettings()
-                }
+            Button(model.text("Show XFinder App in Finder")) {
+                model.revealApplicationInFinder()
+            }
+            Button(model.text("Configure Full Disk Access…")) {
+                model.openFullDiskAccessSettings()
             }
         }
     }
+}
+
+/// Weak window registrations; only the active model is retained for menu observation.
+/// Help, playlist, player, and sheets have no file-operation target.
+@MainActor
+final class BrowserCommandContext: NSObject, ObservableObject {
+    static let shared = BrowserCommandContext()
+    @Published private(set) var activeModel: BrowserViewModel?
+
+    private struct Entry {
+        weak var window: NSWindow?
+        weak var model: BrowserViewModel?
+    }
+    private var entries: [ObjectIdentifier: Entry] = [:]
+
+    private override init() {
+        super.init()
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification,
+                     NSWindow.didBeginSheetNotification, NSWindow.didEndSheetNotification] {
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(focusChanged(_:)), name: name, object: nil
+            )
+        }
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(windowClosed(_:)), name: NSWindow.willCloseNotification, object: nil
+        )
+    }
+
+    func register(_ window: NSWindow, model: BrowserViewModel) {
+        entries[ObjectIdentifier(window)] = Entry(window: window, model: model)
+        refresh()
+    }
+
+    private func refresh() {
+        entries = entries.filter { $0.value.window != nil && $0.value.model != nil }
+        let model: BrowserViewModel?
+        if let window = NSApp.keyWindow, window.attachedSheet == nil {
+            model = entries[ObjectIdentifier(window)]?.model
+        } else {
+            model = nil
+        }
+        if activeModel !== model { activeModel = model }
+    }
+
+    @objc private func focusChanged(_ notification: Notification) {
+        // Let AppKit finish assigning keyWindow before resolving the command target.
+        DispatchQueue.main.async { [weak self] in self?.refresh() }
+    }
+
+    @objc private func windowClosed(_ notification: Notification) {
+        if let window = notification.object as? NSWindow {
+            entries.removeValue(forKey: ObjectIdentifier(window))
+        }
+        refresh()
+    }
+
+    deinit { NotificationCenter.default.removeObserver(self) }
 }
 
 struct DockedBrowserRequest: Codable, Hashable {
@@ -166,7 +200,6 @@ private struct BrowserWindowRoot: View {
     var body: some View {
         ContentView(dockingRequestID: request?.id)
             .environmentObject(model)
-            .focusedSceneObject(model)
             .frame(minWidth: 480, minHeight: 400)
     }
 }
@@ -459,7 +492,7 @@ The additional Location column shows the folder containing each result. Clear th
 
 ## Images, PDFs, and Quick Look
 
-Select one or more files and press Space or click the eye button for Quick Look. The action is also available in the context menu. With several files selected, you can navigate through them in the preview window.
+Select one or more files in the file table and press Space or click the eye button for Quick Look. The action is also available in the context menu. With several files selected, you can navigate through them in the preview window.
 
 Double-clicking an image opens the image viewer. While it is open, clicking another image updates the preview, including from the other file window. Use the preview action for PDFs and other formats supported by macOS as well.
 
@@ -513,7 +546,7 @@ macOS may restrict access to protected folders. XFinder > Configure Full Disk Ac
 ## Keyboard shortcuts and troubleshooting
 
 - ⌘⇧N: New folder.
-- Space: Preview the selection.
+- Space: Preview the selection while the file table has keyboard focus.
 - ⌘⌫: Move the selection to Trash.
 - ⌘⇧.: Show or hide hidden files.
 - ⌘R: Reload the folder view.
@@ -523,7 +556,7 @@ macOS may restrict access to protected folders. XFinder > Configure Full Disk Ac
 - ⌘⇧H: Open the home folder.
 - ⌘,: Open Settings.
 
-These commands apply to the active file window; keys may have other meanings during text entry. Menu items display the available shortcuts.
+Command-key shortcuts apply to the active XFinder file window. Click that window first; help, playlist, player, and dialog windows do not target a file window in the background. Space previews files only when the file table has keyboard focus and remains a space during text entry. Use ⌘⌫ to move files to Trash; plain Delete does not delete files. Menu items display the Command-key shortcuts.
 
 If a drop is rejected, first check whether source and destination are the same folder or the drag began in the same XFinder window. For an empty playlist, check the folder selection, MP3 extensions, and access permissions. If the MP3 timeline is missing, widen the player.
 
@@ -587,7 +620,7 @@ Die zusätzliche Spalte „Ort“ zeigt den Ordner des Treffers. Lösche den Suc
 
 ## Bilder, PDF und Quick Look
 
-Wähle eine oder mehrere Dateien aus und drücke die Leertaste oder klicke auf den Augen-Button für Quick Look. Die Aktion steht auch als Vorschau im Kontextmenü. Bei mehreren Dateien kannst du im Vorschaufenster durch die Auswahl navigieren.
+Wähle in der Dateitabelle eine oder mehrere Dateien aus und drücke die Leertaste oder klicke auf den Augen-Button für Quick Look. Die Aktion steht auch als Vorschau im Kontextmenü. Bei mehreren Dateien kannst du im Vorschaufenster durch die Auswahl navigieren.
 
 Ein Doppelklick auf ein Bild öffnet den Bildviewer. Solange er geöffnet ist, aktualisiert ein Klick auf ein anderes Bild die Vorschau, auch aus dem anderen Dateifenster. Für PDFs und andere von macOS unterstützte Formate verwende ebenfalls die Vorschauaktion.
 
@@ -641,7 +674,7 @@ macOS kann den Zugriff auf geschützte Ordner beschränken. Über „XFinder > V
 ## Tastenkürzel und Hilfe bei Problemen
 
 - ⌘⇧N: Neuer Ordner.
-- Leertaste: Vorschau der Auswahl.
+- Leertaste: Vorschau der Auswahl, wenn die Dateitabelle den Tastaturfokus hat.
 - ⌘⌫: Auswahl in den Papierkorb verschieben.
 - ⌘⇧.: Versteckte Dateien ein- oder ausblenden.
 - ⌘R: Ordneransicht aktualisieren.
@@ -651,7 +684,7 @@ macOS kann den Zugriff auf geschützte Ordner beschränken. Über „XFinder > V
 - ⌘⇧H: Benutzerordner öffnen.
 - ⌘,: Einstellungen öffnen.
 
-Diese Befehle gelten für das aktive Dateifenster; während einer Texteingabe können Tasten eine andere Bedeutung haben. Menüeinträge zeigen die verfügbaren Kürzel an.
+Die Kürzel mit ⌘ gelten für das aktive XFinder-Dateifenster. Klicke dieses Fenster zuerst an; Hilfe, Playlist, Player und Dialogfenster steuern kein Dateifenster im Hintergrund. Die Leertaste öffnet die Vorschau nur bei Tastaturfokus in der Dateitabelle und bleibt bei Texteingaben ein Leerzeichen. Zum Verschieben in den Papierkorb dient ⌘⌫; die einfache Löschtaste löscht keine Dateien. Menüeinträge zeigen die Kürzel mit ⌘ an.
 
 Bei einem abgelehnten Drop prüfe zuerst, ob Quelle und Ziel derselbe Ordner sind oder der Drag im selben XFinder-Fenster begonnen wurde. Bei einer leeren Playlist prüfe die Ordnerauswahl, MP3-Dateiendungen und Zugriffsrechte. Fehlt die MP3-Zeitleiste, verbreitere den Player.
 

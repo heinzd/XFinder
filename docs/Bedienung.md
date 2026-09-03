@@ -54,7 +54,7 @@ Die zusätzliche Spalte „Ort“ zeigt den Ordner des Treffers. Lösche den Suc
 
 ## Bilder, PDF und Quick Look
 
-Wähle eine oder mehrere Dateien aus und drücke die Leertaste oder klicke auf den Augen-Button für Quick Look. Die Aktion steht auch als Vorschau im Kontextmenü. Bei mehreren Dateien kannst du im Vorschaufenster durch die Auswahl navigieren.
+Wähle in der Dateitabelle eine oder mehrere Dateien aus und drücke die Leertaste oder klicke auf den Augen-Button für Quick Look. Die Aktion steht auch als Vorschau im Kontextmenü. Bei mehreren Dateien kannst du im Vorschaufenster durch die Auswahl navigieren.
 
 Ein Doppelklick auf ein Bild öffnet den Bildviewer. Solange er geöffnet ist, aktualisiert ein Klick auf ein anderes Bild die Vorschau, auch aus dem anderen Dateifenster. Für PDFs und andere von macOS unterstützte Formate verwende ebenfalls die Vorschauaktion.
 
@@ -108,7 +108,7 @@ macOS kann den Zugriff auf geschützte Ordner beschränken. Über „XFinder > V
 ## Tastenkürzel und Hilfe bei Problemen
 
 - ⌘⇧N: Neuer Ordner.
-- Leertaste: Vorschau der Auswahl.
+- Leertaste: Vorschau der Auswahl, wenn die Dateitabelle den Tastaturfokus hat.
 - ⌘⌫: Auswahl in den Papierkorb verschieben.
 - ⌘⇧.: Versteckte Dateien ein- oder ausblenden.
 - ⌘R: Ordneransicht aktualisieren.
@@ -118,7 +118,7 @@ macOS kann den Zugriff auf geschützte Ordner beschränken. Über „XFinder > V
 - ⌘⇧H: Benutzerordner öffnen.
 - ⌘,: Einstellungen öffnen.
 
-Diese Befehle gelten für das aktive Dateifenster; während einer Texteingabe können Tasten eine andere Bedeutung haben. Menüeinträge zeigen die verfügbaren Kürzel an.
+Die Kürzel mit ⌘ gelten für das aktive XFinder-Dateifenster. Klicke dieses Fenster zuerst an; Hilfe, Playlist, Player und Dialogfenster steuern kein Dateifenster im Hintergrund. Die Leertaste öffnet die Vorschau nur bei Tastaturfokus in der Dateitabelle und bleibt bei Texteingaben ein Leerzeichen. Zum Verschieben in den Papierkorb dient ⌘⌫; die einfache Löschtaste löscht keine Dateien. Menüeinträge zeigen die Kürzel mit ⌘ an.
 
 Bei einem abgelehnten Drop prüfe zuerst, ob Quelle und Ziel derselbe Ordner sind oder der Drag im selben XFinder-Fenster begonnen wurde. Bei einer leeren Playlist prüfe die Ordnerauswahl, MP3-Dateiendungen und Zugriffsrechte. Fehlt die MP3-Zeitleiste, verbreitere den Player.
 

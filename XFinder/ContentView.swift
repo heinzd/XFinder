@@ -24,6 +24,7 @@ struct ContentView: View {
         }
         .background(BrowserWindowReader { window in
             windowHandle.window = window
+            BrowserCommandContext.shared.register(window, model: model)
             BrowserWindowDocking.shared.attach(window, requestID: dockingRequestID)
         })
         .navigationTitle(model.currentURL.lastPathComponentOrRoot)

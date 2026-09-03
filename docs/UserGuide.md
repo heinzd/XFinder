@@ -54,7 +54,7 @@ The additional Location column shows the folder containing each result. Clear th
 
 ## Images, PDFs, and Quick Look
 
-Select one or more files and press Space or click the eye button for Quick Look. The action is also available in the context menu. With several files selected, you can navigate through them in the preview window.
+Select one or more files in the file table and press Space or click the eye button for Quick Look. The action is also available in the context menu. With several files selected, you can navigate through them in the preview window.
 
 Double-clicking an image opens the image viewer. While it is open, clicking another image updates the preview, including from the other file window. Use the preview action for PDFs and other formats supported by macOS as well.
 
@@ -108,7 +108,7 @@ macOS may restrict access to protected folders. XFinder > Configure Full Disk Ac
 ## Keyboard shortcuts and troubleshooting
 
 - ⌘⇧N: New folder.
-- Space: Preview the selection.
+- Space: Preview the selection while the file table has keyboard focus.
 - ⌘⌫: Move the selection to Trash.
 - ⌘⇧.: Show or hide hidden files.
 - ⌘R: Reload the folder view.
@@ -118,7 +118,7 @@ macOS may restrict access to protected folders. XFinder > Configure Full Disk Ac
 - ⌘⇧H: Open the home folder.
 - ⌘,: Open Settings.
 
-These commands apply to the active file window; keys may have other meanings during text entry. Menu items display the available shortcuts.
+Command-key shortcuts apply to the active XFinder file window. Click that window first; help, playlist, player, and dialog windows do not target a file window in the background. Space previews files only when the file table has keyboard focus and remains a space during text entry. Use ⌘⌫ to move files to Trash; plain Delete does not delete files. Menu items display the Command-key shortcuts.
 
 If a drop is rejected, first check whether source and destination are the same folder or the drag began in the same XFinder window. For an empty playlist, check the folder selection, MP3 extensions, and access permissions. If the MP3 timeline is missing, widen the player.
 
