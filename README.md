@@ -27,8 +27,9 @@ XFinder is a native file manager for macOS with a custom SwiftUI interface.
 - Create a new folder from the current multi-selection and move the selected items
   into it from the context menu
 - Native Quick Look preview for one or multiple selected files (`Space`)
-- Double-click an image to open the shared Quick Look viewer. Selecting another
-  image updates the open viewer without taking focus from the file table.
+- Double-click an image or MP3 file to open the shared Quick Look media viewer.
+  MP3 previews provide playback controls. Selecting another image or MP3 updates
+  the open viewer without taking focus from the file table.
 - Drag sources explicitly provide file URLs; drop targets request copy operations.
   Unreadable drag data and same-folder copies produce an explanatory message.
 - Standard macOS text size with reduced row spacing

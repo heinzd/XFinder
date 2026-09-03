@@ -90,7 +90,7 @@ private final class QuickLookController: NSObject, @preconcurrency QLPreviewPane
         panel.dataSource = self
         panel.reloadData()
         panel.currentPreviewItemIndex = 0
-        // Preserve keyboard/mouse focus in the file table while browsing images.
+        // Preserve keyboard/mouse focus in the file table while browsing images or MP3 files.
     }
 
     func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int {
@@ -124,7 +124,7 @@ final class BrowserViewModel: ObservableObject {
     @Published var selectedItemIDs: Set<FileItem.ID> = [] {
         didSet {
             guard selectedItemIDs != oldValue, let item = selectedItem,
-                  isImage(item) else { return }
+                  usesMediaPreview(item) else { return }
             quickLookController.updateIfVisible([item.url])
         }
     }
@@ -425,19 +425,20 @@ final class BrowserViewModel: ObservableObject {
             navigate(to: item.url)
         } else if fileSystem.requiresExecutionConfirmation(for: item) {
             pendingExecutionItem = item
-        } else if isImage(item) {
+        } else if usesMediaPreview(item) {
             quickLookController.show([item.url])
         } else {
             NSWorkspace.shared.open(item.url)
         }
     }
 
-    private func isImage(_ item: FileItem) -> Bool {
+    private func usesMediaPreview(_ item: FileItem) -> Bool {
         guard !item.isDirectory else { return false }
         if let type = UTType(filenameExtension: item.url.pathExtension),
-           type.conforms(to: .image) { return true }
+           (type.conforms(to: .image) || type.conforms(to: .mp3)) { return true }
         let values = try? item.url.resourceValues(forKeys: [.contentTypeKey])
-        return values?.contentType?.conforms(to: .image) == true
+        guard let type = values?.contentType else { return false }
+        return type.conforms(to: .image) || type.conforms(to: .mp3)
     }
 
     func confirmPendingExecution() {
