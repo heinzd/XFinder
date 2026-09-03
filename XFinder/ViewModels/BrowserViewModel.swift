@@ -98,6 +98,7 @@ private final class QuickLookController: NSObject, @preconcurrency QLPreviewPane
 @MainActor
 final class BrowserViewModel: ObservableObject {
     static let internalDragTypeIdentifier = "com.heinzd.xfinder.internal-file-drag"
+    private let dragSourceID = UUID().uuidString
 
     @Published private(set) var currentURL: URL
     @Published private(set) var items: [FileItem] = []
@@ -573,11 +574,12 @@ final class BrowserViewModel: ObservableObject {
     func dragProvider(for item: FileItem) -> NSItemProvider {
         let provider = NSItemProvider(contentsOf: item.url)
             ?? NSItemProvider(object: item.url as NSURL)
+        let sourceData = Data(dragSourceID.utf8)
         provider.registerDataRepresentation(
             forTypeIdentifier: Self.internalDragTypeIdentifier,
             visibility: .ownProcess
         ) { completion in
-            completion(Data([1]), nil)
+            completion(sourceData, nil)
             return nil
         }
         return provider
@@ -588,27 +590,45 @@ final class BrowserViewModel: ObservableObject {
         _ providers: [NSItemProvider],
         to destination: URL
     ) -> Bool {
-        guard !providers.contains(where: {
-            $0.hasItemConformingToTypeIdentifier(Self.internalDragTypeIdentifier)
-        }) else {
-            return false
-        }
-
         let fileProviders = providers.filter {
             $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
         }
         guard !fileProviders.isEmpty else { return false }
 
         Task {
+            // Validate the whole drop before copying any files. A marker belongs
+            // to one browser window, not to every window in this process.
+            for provider in providers where provider.hasItemConformingToTypeIdentifier(
+                Self.internalDragTypeIdentifier
+            ) {
+                guard let sourceID = await droppedSourceID(from: provider),
+                      sourceID != dragSourceID else { return }
+            }
+
             var urls: [URL] = []
             for provider in fileProviders {
-                if let url = await droppedURL(from: provider) {
-                    urls.append(url)
-                }
+                guard let url = await droppedURL(from: provider) else { return }
+                urls.append(url)
             }
             _ = copyDroppedItems(urls, to: destination)
         }
         return true
+    }
+
+    private func droppedSourceID(from provider: NSItemProvider) async -> String? {
+        await withCheckedContinuation { continuation in
+            provider.loadDataRepresentation(
+                forTypeIdentifier: Self.internalDragTypeIdentifier
+            ) { data, _ in
+                let sourceID = data.flatMap { String(data: $0, encoding: .utf8) }
+                // Unknown or unreadable internal markers fail closed.
+                guard let sourceID, UUID(uuidString: sourceID) != nil else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                continuation.resume(returning: sourceID)
+            }
+        }
     }
 
     private func droppedURL(from provider: NSItemProvider) async -> URL? {
