@@ -71,15 +71,26 @@ private final class ConnectedDeviceMonitor: NSObject, @preconcurrency ICDeviceBr
 
 @MainActor
 private final class QuickLookController: NSObject, @preconcurrency QLPreviewPanelDataSource {
+    static let shared = QuickLookController()
     private var previewURLs: [URL] = []
 
     func show(_ urls: [URL]) {
         guard !urls.isEmpty, let panel = QLPreviewPanel.shared() else { return }
         previewURLs = urls
         panel.dataSource = self
-        panel.currentPreviewItemIndex = 0
         panel.reloadData()
+        panel.currentPreviewItemIndex = 0
         panel.makeKeyAndOrderFront(nil)
+    }
+
+    func updateIfVisible(_ urls: [URL]) {
+        guard !urls.isEmpty, QLPreviewPanel.sharedPreviewPanelExists(),
+              let panel = QLPreviewPanel.shared(), panel.isVisible else { return }
+        previewURLs = urls
+        panel.dataSource = self
+        panel.reloadData()
+        panel.currentPreviewItemIndex = 0
+        // Preserve keyboard/mouse focus in the file table while browsing images.
     }
 
     func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int {
@@ -110,7 +121,13 @@ final class BrowserViewModel: ObservableObject {
     @Published private(set) var customFavoriteURLs: [URL] = []
     @Published private(set) var openDocumentSuiteNames: [String] = []
     @Published private var connectedDevices: [ConnectedMediaDevice] = []
-    @Published var selectedItemIDs: Set<FileItem.ID> = []
+    @Published var selectedItemIDs: Set<FileItem.ID> = [] {
+        didSet {
+            guard selectedItemIDs != oldValue, let item = selectedItem,
+                  isImage(item) else { return }
+            quickLookController.updateIfVisible([item.url])
+        }
+    }
     @Published var errorMessage: String?
     @Published var renameTarget: FileItem?
     @Published var pendingExecutionItem: FileItem?
@@ -132,7 +149,7 @@ final class BrowserViewModel: ObservableObject {
     private var historyIndex = 0
     private var searchTask: Task<Void, Never>?
     private var deviceMonitor: ConnectedDeviceMonitor?
-    private let quickLookController = QuickLookController()
+    private let quickLookController = QuickLookController.shared
     private static let hiddenFilesKey = "showHiddenFiles"
     private static let languageKey = "appLanguage"
     private static let customFavoritesKey = "customFavoritePaths"
@@ -408,9 +425,19 @@ final class BrowserViewModel: ObservableObject {
             navigate(to: item.url)
         } else if fileSystem.requiresExecutionConfirmation(for: item) {
             pendingExecutionItem = item
+        } else if isImage(item) {
+            quickLookController.show([item.url])
         } else {
             NSWorkspace.shared.open(item.url)
         }
+    }
+
+    private func isImage(_ item: FileItem) -> Bool {
+        guard !item.isDirectory else { return false }
+        if let type = UTType(filenameExtension: item.url.pathExtension),
+           type.conforms(to: .image) { return true }
+        let values = try? item.url.resourceValues(forKeys: [.contentTypeKey])
+        return values?.contentType?.conforms(to: .image) == true
     }
 
     func confirmPendingExecution() {
@@ -552,6 +579,9 @@ final class BrowserViewModel: ObservableObject {
                 .standardizedFileURL
                 .resolvingSymlinksInPath() == target
         }) else {
+            errorMessage = language == .german
+                ? "Die Auswahl befindet sich bereits im Zielordner. Es wurde nichts kopiert."
+                : "The selection is already in the destination folder. Nothing was copied."
             return false
         }
 
@@ -572,8 +602,8 @@ final class BrowserViewModel: ObservableObject {
     }
 
     func dragProvider(for item: FileItem) -> NSItemProvider {
-        let provider = NSItemProvider(contentsOf: item.url)
-            ?? NSItemProvider(object: item.url as NSURL)
+        // Export the original file URL, never a promised copy of its contents.
+        let provider = NSItemProvider(object: item.url as NSURL)
         let sourceData = Data(dragSourceID.utf8)
         provider.registerDataRepresentation(
             forTypeIdentifier: Self.internalDragTypeIdentifier,
@@ -593,7 +623,12 @@ final class BrowserViewModel: ObservableObject {
         let fileProviders = providers.filter {
             $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
         }
-        guard !fileProviders.isEmpty else { return false }
+        guard !fileProviders.isEmpty else {
+            errorMessage = language == .german
+                ? "Der Drop enthält keine lesbaren Datei-URLs."
+                : "The drop contains no readable file URLs."
+            return false
+        }
 
         Task {
             // Validate the whole drop before copying any files. A marker belongs
@@ -601,13 +636,23 @@ final class BrowserViewModel: ObservableObject {
             for provider in providers where provider.hasItemConformingToTypeIdentifier(
                 Self.internalDragTypeIdentifier
             ) {
-                guard let sourceID = await droppedSourceID(from: provider),
-                      sourceID != dragSourceID else { return }
+                guard let sourceID = await droppedSourceID(from: provider) else {
+                    errorMessage = language == .german
+                        ? "Das Quellfenster des Drops konnte nicht ermittelt werden."
+                        : "The source window of the drop could not be identified."
+                    return
+                }
+                guard sourceID != dragSourceID else { return }
             }
 
             var urls: [URL] = []
             for provider in fileProviders {
-                guard let url = await droppedURL(from: provider) else { return }
+                guard let url = await droppedURL(from: provider) else {
+                    errorMessage = language == .german
+                        ? "Die Datei-URL konnte nicht aus dem Drop gelesen werden."
+                        : "The file URL could not be read from the drop."
+                    return
+                }
                 urls.append(url)
             }
             _ = copyDroppedItems(urls, to: destination)
@@ -632,10 +677,22 @@ final class BrowserViewModel: ObservableObject {
     }
 
     private func droppedURL(from provider: NSItemProvider) async -> URL? {
-        await withCheckedContinuation { continuation in
-            provider.loadObject(ofClass: NSURL.self) { object, _ in
-                let url = (object as? NSURL).map { $0 as URL }
-                continuation.resume(returning: url)
+        await withCheckedContinuation { (continuation: CheckedContinuation<URL?, Never>) in
+            provider.loadItem(
+                forTypeIdentifier: UTType.fileURL.identifier,
+                options: nil
+            ) { object, _ in
+                let url: URL?
+                if let value = object as? URL {
+                    url = value
+                } else if let value = object as? Data {
+                    url = URL(dataRepresentation: value, relativeTo: nil)
+                } else if let value = object as? String {
+                    url = URL(string: value.trimmingCharacters(in: .whitespacesAndNewlines))
+                } else {
+                    url = nil
+                }
+                continuation.resume(returning: url?.isFileURL == true ? url : nil)
             }
         }
     }

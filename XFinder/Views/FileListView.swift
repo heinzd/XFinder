@@ -66,9 +66,10 @@ struct FileListView: View {
         .controlSize(.mini)
         .environment(\.defaultMinListRowHeight, 14)
         .tableStyle(.inset(alternatesRowBackgrounds: true))
-        .onDrop(of: acceptedDropTypes, isTargeted: nil) { providers in
-            model.copyExternalDroppedItems(providers, to: model.currentURL)
-        }
+        .onDrop(
+            of: acceptedDropTypes,
+            delegate: FileCopyDropDelegate(model: model, destination: model.currentURL)
+        )
         .contextMenu(forSelectionType: FileItem.ID.self) { selection in
             Menu(model.text("New File")) {
                 ForEach(model.standardNewFileKinds) { kind in
@@ -143,9 +144,10 @@ struct FileListView: View {
         }
 
         if item.canNavigateInto {
-            cell.onDrop(of: acceptedDropTypes, isTargeted: nil) { providers in
-                model.copyExternalDroppedItems(providers, to: item.url)
-            }
+            cell.onDrop(
+                of: acceptedDropTypes,
+                delegate: FileCopyDropDelegate(model: model, destination: item.url)
+            )
         } else {
             cell
         }
@@ -175,5 +177,27 @@ struct FileListView: View {
             guard let item = model.item(withID: id) else { return false }
             return !item.isDirectory
         }
+    }
+}
+
+@MainActor
+private struct FileCopyDropDelegate: @preconcurrency DropDelegate {
+    let model: BrowserViewModel
+    let destination: URL
+
+    func validateDrop(info: DropInfo) -> Bool {
+        info.hasItemsConforming(to: [UTType.fileURL])
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        // Same-process drags must also use copy, never an implicit move.
+        DropProposal(operation: .copy)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        model.copyExternalDroppedItems(
+            info.itemProviders(for: [UTType.fileURL]),
+            to: destination
+        )
     }
 }
