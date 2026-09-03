@@ -40,10 +40,13 @@ XFinder is a native file manager for macOS with a custom SwiftUI interface.
   from each immediate subfolder, then the next depth. Each folder stays together
   as an album, with natural filename order inside it.
 - Click a playlist row to play it in the same audio player used for single MP3s.
-  The playlist toolbar offers previous, next, beginning, end, and persistent
+  The playlist toolbar offers previous, play/stop, next, beginning, end, and persistent
   random/in-order playback. The list keeps its album order even in random mode.
   Playback automatically advances at the end of a track and stops after the last.
   Closing the playlist discards it and stops its playback.
+- The audio player uses normal window ordering so other windows and applications
+  can cover it. Automatic track changes do not raise the player. Stop keeps the
+  selected playlist track; Play starts it again from the beginning.
 - Drag sources explicitly provide file URLs; drop targets request copy operations.
   Unreadable drag data and same-folder copies produce an explanatory message.
 - Standard macOS text size with reduced row spacing

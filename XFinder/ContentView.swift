@@ -272,6 +272,15 @@ struct PlaylistView: View {
                 .help(player.text("Previous track", "Vorheriger Titel"))
                 .disabled(!player.canGoBack)
 
+                Button(action: player.togglePlayStop) {
+                    Label(
+                        player.canStopPlaylist ? player.text("Stop", "Stopp") : player.text("Play", "Abspielen"),
+                        systemImage: player.canStopPlaylist ? "stop.fill" : "play.fill"
+                    )
+                }
+                .help(player.canStopPlaylist ? player.text("Stop playback", "Wiedergabe stoppen") : player.text("Play selected track", "Ausgewählten Titel abspielen"))
+                .disabled(player.items.isEmpty)
+
                 Button(action: player.next) {
                     Label(player.text("Next", "Vor"), systemImage: "forward.fill")
                 }

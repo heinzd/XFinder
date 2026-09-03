@@ -121,6 +121,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
 
     @Published private(set) var items: [FileItem] = []
     @Published private(set) var selectedID: URL?
+    @Published private(set) var isPlaybackActive = false
     @Published private(set) var rootURL: URL?
     @Published private(set) var language: AppLanguage = .english
     @Published private(set) var isRandom: Bool {
@@ -139,12 +140,20 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     private var currentIndex = 0
     private var isPlayingPlaylist = false
     private var endObserver: NSObjectProtocol?
+    private var playbackObservation: NSKeyValueObservation?
     private var activePlaybackID: UUID?
     private static let randomOrderKey = "playlistUsesRandomOrder"
 
     private override init() {
         isRandom = UserDefaults.standard.bool(forKey: Self.randomOrderKey)
         super.init()
+        playbackObservation = player.observe(\.timeControlStatus, options: [.initial, .new]) { [weak self] _, _ in
+            // Read the current state on the main actor; do not transfer KVO values.
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.isPlaybackActive = self.player.timeControlStatus != .paused
+            }
+        }
         playerView.player = player
         playerView.controlsStyle = .default
         playerView.showsFullScreenToggleButton = false
@@ -190,13 +199,22 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
 
     var canGoBack: Bool { !items.isEmpty && (selectedID == nil || currentIndex > 0) }
     var canGoForward: Bool { !items.isEmpty && (selectedID == nil || currentIndex + 1 < playOrder.count) }
+    var canStopPlaylist: Bool { isPlayingPlaylist && isPlaybackActive }
 
-    func play(_ id: URL) {
+    func togglePlayStop() {
+        if canStopPlaylist {
+            haltPlayback()
+        } else if let id = selectedID ?? playOrder.first {
+            play(id)
+        }
+    }
+
+    func play(_ id: URL, revealPlayer: Bool = true) {
         guard let index = playOrder.firstIndex(of: id) else { return }
         currentIndex = index
         isPlayingPlaylist = true
         selectedID = id
-        showPlayer(id, language: language)
+        showPlayer(id, language: language, revealPlayer: revealPlayer)
     }
 
     func first() { if let item = items.first { play(item.id) } }
@@ -233,7 +251,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         playSingle(url, language: language)
     }
 
-    private func showPlayer(_ url: URL, language: AppLanguage) {
+    private func showPlayer(_ url: URL, language: AppLanguage, revealPlayer: Bool = true) {
         buildPanelIfNeeded()
         panel?.title = url.lastPathComponent
         removeEndObserver()
@@ -248,7 +266,9 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
             Task { @MainActor [weak self] in
                 guard let self, self.isPlayingPlaylist,
                       self.activePlaybackID == playbackID else { return }
-                self.next()
+                if self.canGoForward {
+                    self.play(self.playOrder[self.currentIndex + 1], revealPlayer: false)
+                }
             }
         }
         trackLabel.stringValue = url.lastPathComponent
@@ -273,8 +293,11 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
             }
         }
         // Keep focus in the table so arrows and subsequent clicks select tracks.
-        panel?.orderFront(nil)
+        if revealPlayer {
+            panel?.orderFront(nil)
+        }
         player.play()
+        isPlaybackActive = true
     }
 
     private func buildPanelIfNeeded() {
@@ -285,8 +308,8 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
             backing: .buffered, defer: false
         )
         panel.isReleasedWhenClosed = false
-        panel.isFloatingPanel = true
-        panel.level = .floating
+        panel.isFloatingPanel = false
+        panel.level = .normal
         panel.isMovableByWindowBackground = true
         panel.hidesOnDeactivate = false
         panel.delegate = self
@@ -350,10 +373,15 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         return result
     }
 
-    private func stopPlayback() {
+    private func haltPlayback() {
+        removeEndObserver()
         player.pause()
         player.replaceCurrentItem(with: nil)
-        removeEndObserver()
+        isPlaybackActive = false
+    }
+
+    private func stopPlayback() {
+        haltPlayback()
         isPlayingPlaylist = false
         selectedID = nil
     }
