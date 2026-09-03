@@ -1,6 +1,6 @@
 # XFinder – Bedienungsanleitung
 
-Diese Anleitung beschreibt die Bedienung von XFinder 0.4. Die Bezeichnungen sind deutsch; bei englischer App-Sprache erscheinen die entsprechenden englischen Befehle. Die Hilfe ist auch ohne Internet in der App verfügbar: über „Hilfe > XFinder-Hilfe“ oder den Fragezeichen-Button in der Fensterleiste. Links steht das Inhaltsverzeichnis, das Suchfeld durchsucht Überschriften und Inhalte.
+Diese Anleitung beschreibt die Bedienung von XFinder 0.4. Die Hilfe folgt der in den XFinder-Einstellungen gewählten Sprache, auch bei bereits geöffnetem Hilfefenster. Bei englischer App-Sprache wird die vollständige englische Anleitung angezeigt. Die Hilfe ist auch ohne Internet in der App verfügbar: über „Hilfe > XFinder-Hilfe“ oder den Fragezeichen-Button in der Fensterleiste. Links steht das Inhaltsverzeichnis, das Suchfeld durchsucht Überschriften und Inhalte.
 
 ## Einstieg und Navigation
 

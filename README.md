@@ -2,25 +2,25 @@
 
 XFinder is a native file manager for macOS with a custom SwiftUI interface.
 
-## User guide / Bedienungsanleitung
+## User guide
 
-Die ausführliche [deutsche Bedienungsanleitung](docs/Bedienung.md) erklärt Navigation,
-Dateiaktionen, Suche, Drag & Drop, angedockte Fenster, Vorschau, MP3-Player und Playlist.
-In der App öffnest du sie über **Hilfe > XFinder-Hilfe** (English: **Help > XFinder Help**)
-oder den Fragezeichen-Button. Das eigene Hilfefenster bietet Inhaltsverzeichnis,
-Volltextsuche über die Kapitel und kopierbaren Text; es funktioniert offline.
+The [English user guide](docs/UserGuide.md) covers navigation, file operations,
+search, drag and drop, docked windows, previews, the MP3 player, and playlists.
+A [German translation / Deutsche Anleitung](docs/Bedienung.md) is also available.
 
-The German user guide is available both on GitHub and inside the app, including
-known limitations and troubleshooting. In-app search filters chapters by title and content.
+Open **Help > XFinder Help** or click the question-mark toolbar button for offline
+help with a table of contents, chapter search, and selectable text. The guide and
+help interface follow the language selected in XFinder Settings, even while the
+help window is open. English is the default.
 
-For documentation changes, edit `docs/Bedienung.md`, then run:
+For documentation changes, update `docs/UserGuide.md` and `docs/Bedienung.md`, then run:
 
 ```bash
 python3 scripts/sync_help.py
 python3 scripts/sync_help.py --check
 ```
 
-Commit both the Markdown and the generated section in `XFinder/XFinderApp.swift`.
+Keep the same chapter order in both translations. Commit both Markdown files and the generated section in `XFinder/XFinderApp.swift`.
 The generated text is compiled into the existing target, so no resource registration,
 build script, Python installation on the user's Mac, or Xcode project change is needed
 to build or use the app. Python is only needed when regenerating the manual.
@@ -137,7 +137,7 @@ Use `XFinder > Configure Full Disk Access…` to grant permission once. The
 `XFinder > Show XFinder App in Finder` command locates the application launched
 from Xcode. Restart XFinder after changing Full Disk Access.
 
-## Deutsch
+## Languages
 
-XFinder ist ein nativer macOS-Dateimanager. Englisch ist die primäre Sprache;
-Deutsch kann jederzeit in den Einstellungen ausgewählt werden.
+English is the default language. German can be selected in Settings at any time;
+the in-app guide switches with it. See the [German user guide](docs/Bedienung.md).
