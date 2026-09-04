@@ -229,7 +229,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         if canStopPlaylist {
             haltPlayback()
         } else if let id = selectedID ?? playOrder.first {
-            play(id)
+            play(id, scrollSelectionIntoView: true)
         }
     }
 
@@ -250,15 +250,28 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         showPlayer(id, language: language, revealPlayer: revealPlayer)
     }
 
-    func first() { if let item = items.first { play(item.id) } }
-    func last() { if let item = items.last { play(item.id) } }
+    func first() {
+        if let item = items.first { play(item.id, scrollSelectionIntoView: true) }
+    }
+
+    func last() {
+        if let item = items.last { play(item.id, scrollSelectionIntoView: true) }
+    }
+
     func previous() {
         guard canGoBack else { return }
-        play(playOrder[selectedID == nil ? 0 : currentIndex - 1])
+        play(
+            playOrder[selectedID == nil ? 0 : currentIndex - 1],
+            scrollSelectionIntoView: true
+        )
     }
+
     func next() {
         guard canGoForward else { return }
-        play(playOrder[selectedID == nil ? 0 : currentIndex + 1])
+        play(
+            playOrder[selectedID == nil ? 0 : currentIndex + 1],
+            scrollSelectionIntoView: true
+        )
     }
 
     func toggleOrder() {
