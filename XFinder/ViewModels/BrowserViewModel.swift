@@ -498,7 +498,13 @@ final class BrowserViewModel: ObservableObject {
     @Published var isShowingSettings = false
     @Published var language: AppLanguage {
         didSet {
-            UserDefaults.standard.set(language.rawValue, forKey: Self.languageKey)
+            let selectedLanguage = language
+            // The segmented Picker changes this @Published property while SwiftUI is
+            // updating SettingsSheet. Writing UserDefaults synchronously would update
+            // the app's @AppStorage observers during that same view-update pass.
+            DispatchQueue.main.async {
+                UserDefaults.standard.set(selectedLanguage.rawValue, forKey: Self.languageKey)
+            }
         }
     }
     @Published var showHiddenFiles: Bool {

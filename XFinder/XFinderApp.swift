@@ -418,8 +418,11 @@ private struct XFinderHelpView: View {
         }
         .searchable(text: $query, prompt: text("Search help", "Hilfe durchsuchen"))
         .onChange(of: language) { _, _ in
-            // Preserve the chapter, but discard a query written in the previous language.
-            query = ""
+            // @AppStorage can change while another SwiftUI view is still processing
+            // the language Picker. Publish this local state change on the next pass.
+            DispatchQueue.main.async {
+                query = ""
+            }
         }
         .frame(minWidth: 640, minHeight: 420)
         .toolbar {
