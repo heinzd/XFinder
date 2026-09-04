@@ -259,6 +259,11 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSBackgroundOnly = NO;
 				INFOPLIST_KEY_LSUIElement = NO;
+				INFOPLIST_KEY_NSBonjourServices = (
+					"_smb._tcp",
+					"_afpovertcp._tcp",
+				);
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "XFinder discovers file servers and shared folders on your local network.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -289,6 +294,11 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSBackgroundOnly = NO;
 				INFOPLIST_KEY_LSUIElement = NO;
+				INFOPLIST_KEY_NSBonjourServices = (
+					"_smb._tcp",
+					"_afpovertcp._tcp",
+				);
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "XFinder discovers file servers and shared folders on your local network.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

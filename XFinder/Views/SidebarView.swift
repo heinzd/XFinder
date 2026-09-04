@@ -1,7 +1,9 @@
+import AppKit
 import SwiftUI
 
 struct SidebarView: View {
     @EnvironmentObject private var model: BrowserViewModel
+    @ObservedObject private var networkDiscovery = NetworkServerDiscovery.shared
 
     var body: some View {
         List {
@@ -24,15 +26,27 @@ struct SidebarView: View {
                     SidebarRow(location: location)
                 }
 
-                ForEach(networkServers, id: \.name) { server in
-                    DisclosureGroup {
-                        ForEach(server.shares) { location in
-                            SidebarRow(location: location)
+                DisclosureGroup {
+                    ForEach(networkServers) { server in
+                        if server.shares.isEmpty {
+                            networkServerButton(server)
+                        } else {
+                            DisclosureGroup {
+                                ForEach(server.shares) { location in
+                                    SidebarRow(location: location)
+                                }
+                                if server.connectionURL != nil {
+                                    networkServerButton(server, compact: true)
+                                }
+                            } label: {
+                                Label(server.name, systemImage: "server.rack")
+                            }
                         }
-                    } label: {
-                        Label(server.name, systemImage: "network")
                     }
+                } label: {
+                    Label(model.text("Network"), systemImage: "network")
                 }
+                .help(model.text("Discovered file servers and mounted network shares"))
             }
         }
         .listStyle(.sidebar)
@@ -60,18 +74,62 @@ struct SidebarView: View {
         }
     }
 
-    private var ungroupedLocations: [SidebarLocation] {
-        model.locations.filter { $0.networkServer == nil }
+    @ViewBuilder
+    private func networkServerButton(_ server: NetworkSidebarServer, compact: Bool = false) -> some View {
+        Button {
+            if let url = server.connectionURL {
+                NSWorkspace.shared.open(url)
+            }
+        } label: {
+            Label(
+                compact ? model.text("Connect to Server…") : server.name,
+                systemImage: compact ? "network" : "server.rack"
+            )
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .disabled(server.connectionURL == nil)
+        .help(server.connectionURL == nil
+              ? model.text("Server discovered; address is still being resolved")
+              : model.text("Connect to Server"))
     }
 
-    private var networkServers: [(name: String, shares: [SidebarLocation])] {
-        Dictionary(grouping: model.locations.compactMap { location in
-            location.networkServer.map { ($0, location) }
-        }, by: { $0.0 })
-        .map { name, entries in
-            (name: name, shares: entries.map(\.1).sorted {
-                $0.title.localizedStandardCompare($1.title) == .orderedAscending
-            })
+    private struct NetworkSidebarServer: Identifiable {
+        let name: String
+        let connectionURL: URL?
+        let shares: [SidebarLocation]
+        var id: String { name.localizedLowercase }
+    }
+
+    private var ungroupedLocations: [SidebarLocation] {
+        model.locations.filter { $0.networkServer == nil && $0.systemImage != "network" }
+    }
+
+    private var networkServers: [NetworkSidebarServer] {
+        var names: [String: String] = [:]
+        var urls: [String: URL] = [:]
+        var shares: [String: [SidebarLocation]] = [:]
+
+        for endpoint in networkDiscovery.servers {
+            let key = endpoint.name.localizedLowercase
+            names[key] = endpoint.name
+            if let url = endpoint.connectionURL { urls[key] = url }
+        }
+        for location in model.locations where location.systemImage == "network" {
+            let serverName = location.networkServer ?? location.title
+            let key = serverName.localizedLowercase
+            names[key] = names[key] ?? serverName
+            shares[key, default: []].append(location)
+        }
+
+        return names.map { key, name in
+            NetworkSidebarServer(
+                name: name,
+                connectionURL: urls[key],
+                shares: shares[key, default: []].sorted {
+                    $0.title.localizedStandardCompare($1.title) == .orderedAscending
+                }
+            )
         }
         .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }

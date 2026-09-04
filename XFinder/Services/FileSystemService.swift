@@ -1,4 +1,88 @@
+import Combine
 import Foundation
+
+struct NetworkServerEndpoint: Identifiable, Hashable, Sendable {
+    let name: String
+    let connectionURL: URL?
+
+    var id: String { name.localizedLowercase }
+}
+
+/// Discovers file servers Finder shows below its Network node, including servers
+/// that currently have no mounted share.
+@MainActor
+final class NetworkServerDiscovery: NSObject, ObservableObject,
+                                    @preconcurrency NetServiceBrowserDelegate,
+                                    @preconcurrency NetServiceDelegate {
+    static let shared = NetworkServerDiscovery()
+
+    @Published private(set) var servers: [NetworkServerEndpoint] = []
+
+    private let browsers = [NetServiceBrowser(), NetServiceBrowser()]
+    private var services: [ObjectIdentifier: NetService] = [:]
+
+    private override init() {
+        super.init()
+        for browser in browsers { browser.delegate = self }
+        browsers[0].searchForServices(ofType: "_smb._tcp.", inDomain: "local.")
+        browsers[1].searchForServices(ofType: "_afpovertcp._tcp.", inDomain: "local.")
+    }
+
+    func netServiceBrowser(
+        _ browser: NetServiceBrowser,
+        didFind service: NetService,
+        moreComing: Bool
+    ) {
+        services[ObjectIdentifier(service)] = service
+        service.delegate = self
+        service.resolve(withTimeout: 5)
+        if !moreComing { rebuildServers() }
+    }
+
+    func netServiceBrowser(
+        _ browser: NetServiceBrowser,
+        didRemove service: NetService,
+        moreComing: Bool
+    ) {
+        services.removeValue(forKey: ObjectIdentifier(service))
+        if !moreComing { rebuildServers() }
+    }
+
+    func netServiceDidResolveAddress(_ sender: NetService) {
+        rebuildServers()
+    }
+
+    func netService(_ sender: NetService, didNotResolve errorDict: [String: NSNumber]) {
+        // Keep the discovered name visible. A later mount notification will add
+        // shares even when hostname resolution was temporarily unavailable.
+        rebuildServers()
+    }
+
+    private func rebuildServers() {
+        var byName: [String: NetworkServerEndpoint] = [:]
+        for service in services.values {
+            let name = service.name
+            guard !name.isEmpty else { continue }
+            let host = service.hostName?.trimmingCharacters(in: CharacterSet(charactersIn: "."))
+            let scheme = service.type.lowercased().contains("smb") ? "smb" : "afp"
+            let connectionURL = host.flatMap { host in
+                var components = URLComponents()
+                components.scheme = scheme
+                components.host = host
+                return components.url
+            }
+            let key = name.localizedLowercase
+            let existing = byName[key]
+            byName[key] = NetworkServerEndpoint(
+                name: name,
+                connectionURL: existing?.connectionURL ?? connectionURL
+            )
+        }
+        servers = byName.values.sorted {
+            $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        }
+    }
+}
 
 struct FileSystemService {
     private let fileManager = FileManager.default
