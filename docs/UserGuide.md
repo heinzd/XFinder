@@ -72,9 +72,9 @@ Known limitation: At narrow window widths, the native controls hide the timeline
 
 ## Creating a playlist from a folder
 
-Select exactly one folder and click the playlist toolbar button with the music-list symbol. XFinder collects MP3 files from that folder and its subfolders. If no single navigable folder is selected, the current folder is used instead.
+Select one or more folders and click the playlist toolbar button with the music-list symbol. XFinder collects MP3 files only from those folders and their subfolders. If no folder is selected, the current folder is used instead. A selected parent folder already includes selected folders below it, so tracks are not duplicated.
 
-The playlist opens in its own table window with Name, Album / Folder, and Size columns. It is temporary and read-only. Clicking a track starts it; opening the list alone does not start playback. The player docks beside the playlist, matches its height, and moves with it. Playing a single file from the file list detaches the player.
+The playlist opens in its own window. Its read-only table is on the left and the complete player with artwork, metadata, playback controls, and timeline is integrated on the right. Embedded cover artwork is also loaded asynchronously into the Name column; tracks without artwork show a music-note placeholder. Clicking a track starts it; opening the list alone does not start playback. Playing an MP3 from the regular file view continues to use a separate player window.
 
 Folders form album groups. Files are collected breadth-first: tracks directly in the root folder first, then tracks in its immediate subfolders, then the next level. Tracks within each folder use natural file-name order, such as Track 2 before Track 10. Album / Folder shows the folder path, not the MP3 album metadata field.
 

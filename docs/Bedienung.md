@@ -72,9 +72,9 @@ Bekannte Einschränkung: Bei schmalem Playerfenster blendet die native Steuerung
 
 ## Playlist aus einem Ordner
 
-Markiere genau einen Ordner und klicke auf den Playlist-Button mit dem Notenlisten-Symbol. XFinder sammelt die MP3-Dateien dieses Ordners und seiner Unterordner. Ist kein einzelner navigierbarer Ordner ausgewählt, dient der aktuell geöffnete Ordner als Quelle.
+Markiere einen oder mehrere Ordner und klicke auf den Playlist-Button mit dem Notenlisten-Symbol. XFinder sammelt MP3-Dateien ausschließlich aus diesen Ordnern und ihren Unterordnern. Ist kein Ordner ausgewählt, dient der aktuell geöffnete Ordner als Quelle. Ein ausgewählter übergeordneter Ordner schließt darunter ebenfalls ausgewählte Ordner bereits ein, sodass Titel nicht doppelt erscheinen.
 
-Die Playlist erscheint als eigenes Tabellenfenster mit Name, Album/Ordner und Größe. Sie ist temporär und nicht bearbeitbar. Ein Klick auf einen Titel startet ihn; das Öffnen der Liste allein startet noch keine Wiedergabe. Der Player dockt seitlich an die Playlist an, übernimmt ihre Höhe und bewegt sich mit ihr. Einzelwiedergabe aus der Dateiliste löst diese Kopplung.
+Die Playlist erscheint in einem eigenen Fenster. Links steht die schreibgeschützte Tabelle, rechts ist der vollständige Player mit Cover, Metadaten, Wiedergabesteuerung und Zeitleiste integriert. Eingebettete Cover werden außerdem asynchron in die Namensspalte geladen; Titel ohne Cover zeigen ein Notensymbol. Ein Klick auf einen Titel startet ihn; das Öffnen der Liste allein startet noch keine Wiedergabe. MP3-Dateien aus der normalen Dateiansicht verwenden weiterhin ein separates Playerfenster.
 
 Ordner bilden Albumblöcke. XFinder sammelt nach dem Prinzip der Breitensuche: zuerst Titel direkt im Ausgangsordner, dann die Titel seiner unmittelbaren Unterordner, danach die nächste Ebene. Innerhalb eines Ordners gilt die natürliche Dateinamensortierung, etwa Titel 2 vor Titel 10. Die Spalte „Album / Ordner“ bezeichnet den Dateipfad, nicht das Albumfeld der MP3-Metadaten.
 

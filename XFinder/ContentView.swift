@@ -217,57 +217,78 @@ struct PlaylistView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Table(player.items, selection: selection) {
-                TableColumn(player.text("Name", "Name")) { item in
-                    HStack(spacing: 4) {
-                        Image(systemName: player.selectedID == item.id ? "speaker.wave.2.fill" : "music.note")
-                            .frame(width: 16)
-                        Text(item.name)
+        HSplitView {
+            VStack(spacing: 0) {
+                Table(player.items, selection: selection) {
+                    TableColumn(player.text("Name", "Name")) { item in
+                        HStack(spacing: 8) {
+                            ZStack(alignment: .bottomTrailing) {
+                                if let cover = player.playlistArtwork[item.id] {
+                                    Image(nsImage: cover)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 32, height: 32)
+                                        .clipped()
+                                        .cornerRadius(3)
+                                } else {
+                                    Image(systemName: "music.note")
+                                        .frame(width: 32, height: 32)
+                                        .background(Color.secondary.opacity(0.12))
+                                        .cornerRadius(3)
+                                }
+                                if player.selectedID == item.id {
+                                    Image(systemName: "speaker.wave.2.fill")
+                                        .font(.system(size: 9))
+                                        .padding(3)
+                                        .background(.regularMaterial, in: Circle())
+                                }
+                            }
+                            Text(item.name)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                    }
+                    .width(min: 200, ideal: 330)
+
+                    TableColumn(player.text("Album / Folder", "Album / Ordner")) { item in
+                        Text(player.album(for: item))
+                            .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
-                }
-                .width(min: 200, ideal: 330)
+                    .width(min: 130, ideal: 230)
 
-                TableColumn(player.text("Album / Folder", "Album / Ordner")) { item in
-                    Text(player.album(for: item))
-                        .foregroundStyle(.secondary)
+                    TableColumn(player.text("Size", "Größe")) { item in
+                        Text(item.formattedSize)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                    .width(min: 70, ideal: 90, max: 120)
+                }
+                .font(.body)
+                .controlSize(.mini)
+                .environment(\.defaultMinListRowHeight, 38)
+                .tableStyle(.inset(alternatesRowBackgrounds: true))
+
+                Divider()
+                HStack {
+                    Text("\(player.items.count) " + player.text("tracks", "Titel"))
+                    Spacer()
+                    Text(player.sourceDescription)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
-                .width(min: 130, ideal: 230)
-
-                TableColumn(player.text("Size", "Größe")) { item in
-                    Text(item.formattedSize)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-                .width(min: 70, ideal: 90, max: 120)
+                .font(.caption)
+                .padding(.horizontal, 12)
+                .frame(height: 26)
             }
-            .font(.body)
-            .controlSize(.mini)
-            .environment(\.defaultMinListRowHeight, 14)
-            .tableStyle(.inset(alternatesRowBackgrounds: true))
 
-            Divider()
-            HStack {
-                Text("\(player.items.count) " + player.text("tracks", "Titel"))
-                Spacer()
-                Text(player.rootURL?.path ?? "")
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-            .font(.caption)
-            .padding(.horizontal, 12)
-            .frame(height: 26)
+            PlaylistPlayerHostView()
+                .frame(minWidth: 220, idealWidth: 280, maxWidth: 420)
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .navigationTitle(player.text("Playlist", "Wiedergabeliste"))
-        .background(BrowserWindowReader { window in
-            player.setPlaylistWindow(window)
-        })
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
                 Button(action: player.first) {
@@ -315,6 +336,22 @@ struct PlaylistView: View {
             }
         }
         .onDisappear { player.closePlaylist() }
+    }
+}
+
+private struct PlaylistPlayerHostView: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        PlaylistPlayerController.shared.attachPlaylistPlayer(to: view)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        PlaylistPlayerController.shared.attachPlaylistPlayer(to: nsView)
+    }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: Void) {
+        PlaylistPlayerController.shared.detachPlaylistPlayer(from: nsView)
     }
 }
 

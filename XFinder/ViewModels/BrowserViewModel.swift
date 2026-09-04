@@ -123,7 +123,9 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     @Published private(set) var selectedID: URL?
     @Published private(set) var isPlaybackActive = false
     @Published private(set) var rootURL: URL?
+    @Published private(set) var rootURLs: [URL] = []
     @Published private(set) var language: AppLanguage = .english
+    @Published private(set) var playlistArtwork: [URL: NSImage] = [:]
     @Published private(set) var isRandom: Bool {
         didSet { UserDefaults.standard.set(isRandom, forKey: Self.randomOrderKey) }
     }
@@ -135,10 +137,10 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     private let artistLabel = NSTextField(labelWithString: "")
     private let albumLabel = NSTextField(labelWithString: "")
     private var metadataTask: Task<Void, Never>?
+    private var playlistArtworkTask: Task<Void, Never>?
     private var panel: NSPanel?
-    private weak var playlistWindow: NSWindow?
-    private var playlistDock: DockedPair?
-    private var undockedPlayerMinSize: NSSize?
+    private var playerContentView: NSView?
+    private weak var playlistPlayerHost: NSView?
     private var displayedArtworkData: Data?
     private var playOrder: [URL] = []
     private var currentIndex = 0
@@ -181,13 +183,15 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         trackLabel.lineBreakMode = .byWordWrapping
     }
 
-    func setPlaylist(_ items: [FileItem], root: URL, language: AppLanguage) {
-        detachPlayer()
+    func setPlaylist(_ items: [FileItem], roots: [URL], language: AppLanguage) {
         stopPlayback()
         panel?.orderOut(nil)
         self.items = items
-        rootURL = root
+        rootURLs = roots.map(\.standardizedFileURL)
+        rootURL = rootURLs.count == 1 ? rootURLs[0] : nil
         self.language = language
+        resetPlaylistPresentation()
+        loadPlaylistArtwork(for: items)
         let urls = items.map(\.id)
         playOrder = isRandom ? urls.shuffled() : urls
         currentIndex = 0
@@ -199,10 +203,16 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
 
     func album(for item: FileItem) -> String {
         let parent = item.url.deletingLastPathComponent().standardizedFileURL
-        guard let root = rootURL?.standardizedFileURL else { return parent.lastPathComponent }
+        guard let root = rootURLs.first(where: { root in
+            parent == root || parent.path.hasPrefix(root.path.hasSuffix("/") ? root.path : root.path + "/")
+        }) else { return parent.lastPathComponent }
         if parent == root { return root.lastPathComponent }
         let prefix = root.path.hasSuffix("/") ? root.path : root.path + "/"
         return parent.path.hasPrefix(prefix) ? String(parent.path.dropFirst(prefix.count)) : parent.path
+    }
+
+    var sourceDescription: String {
+        rootURLs.map(\.lastPathComponent).joined(separator: ", ")
     }
 
     var canGoBack: Bool { !items.isEmpty && (selectedID == nil || currentIndex > 0) }
@@ -249,9 +259,9 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     }
 
     func playSingle(_ url: URL, language: AppLanguage) {
-        detachPlayer()
         isPlayingPlaylist = false
         selectedID = nil
+        attachPlayerToPanel()
         showPlayer(url, language: language)
     }
 
@@ -262,7 +272,12 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
 
     private func showPlayer(_ url: URL, language: AppLanguage, revealPlayer: Bool = true) {
         buildPanelIfNeeded()
-        dockPlayerIfNeeded()
+        if isPlayingPlaylist {
+            attachPlayerToPlaylistIfPossible()
+            panel?.orderOut(nil)
+        } else {
+            attachPlayerToPanel()
+        }
         removeEndObserver()
         let item = AVPlayerItem(url: url)
         player.replaceCurrentItem(with: item)
@@ -303,9 +318,9 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
                         accessibilityDescription: language == .german ? "Kein Cover" : "No artwork"
                     )
                 }
-                self.panel?.contentView?.layoutSubtreeIfNeeded()
+                self.playerContentView?.layoutSubtreeIfNeeded()
             }, completionHandler: nil)
-            if revealPlayer {
+            if revealPlayer && !self.isPlayingPlaylist {
                 self.panel?.orderFront(nil)
             }
         }
@@ -332,6 +347,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         content.blendingMode = .behindWindow
         content.state = .active
         panel.contentView = content
+        playerContentView = content
         let stack = NSStackView(views: [artworkView, trackLabel, artistLabel, albumLabel, playerView])
         stack.orientation = .vertical
         stack.alignment = .centerX
@@ -356,6 +372,75 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         ])
         panel.center()
         self.panel = panel
+    }
+
+    func attachPlaylistPlayer(to host: NSView) {
+        playlistPlayerHost = host
+        buildPanelIfNeeded()
+        attachPlayerToPlaylistIfPossible()
+        panel?.orderOut(nil)
+    }
+
+    func detachPlaylistPlayer(from host: NSView) {
+        guard playlistPlayerHost === host else { return }
+        playlistPlayerHost = nil
+        playerContentView?.removeFromSuperview()
+    }
+
+    private func attachPlayerToPlaylistIfPossible() {
+        guard isPlayingPlaylist || !items.isEmpty,
+              let host = playlistPlayerHost,
+              let content = playerContentView else { return }
+        if content.superview === host { return }
+        if panel?.contentView === content { panel?.contentView = NSView() }
+        content.removeFromSuperview()
+        content.translatesAutoresizingMaskIntoConstraints = false
+        host.addSubview(content)
+        NSLayoutConstraint.activate([
+            content.leadingAnchor.constraint(equalTo: host.leadingAnchor),
+            content.trailingAnchor.constraint(equalTo: host.trailingAnchor),
+            content.topAnchor.constraint(equalTo: host.topAnchor),
+            content.bottomAnchor.constraint(equalTo: host.bottomAnchor)
+        ])
+    }
+
+    private func attachPlayerToPanel() {
+        buildPanelIfNeeded()
+        guard let panel, let content = playerContentView,
+              panel.contentView !== content else { return }
+        content.removeFromSuperview()
+        content.translatesAutoresizingMaskIntoConstraints = true
+        panel.contentView = content
+    }
+
+    private func resetPlaylistPresentation() {
+        buildPanelIfNeeded()
+        displayedArtworkData = nil
+        artworkView.contentTintColor = .secondaryLabelColor
+        artworkView.image = NSImage(
+            systemSymbolName: "music.note",
+            accessibilityDescription: language == .german ? "Kein Titel ausgewählt" : "No track selected"
+        )
+        trackLabel.stringValue = language == .german ? "Titel auswählen" : "Select a track"
+        trackLabel.toolTip = nil
+        artistLabel.stringValue = ""
+        albumLabel.stringValue = ""
+        attachPlayerToPlaylistIfPossible()
+    }
+
+    private func loadPlaylistArtwork(for items: [FileItem]) {
+        playlistArtworkTask?.cancel()
+        playlistArtwork = [:]
+        playlistArtworkTask = Task { @MainActor [weak self] in
+            for item in items {
+                guard !Task.isCancelled else { return }
+                if let data = await Self.readArtwork(from: item.url),
+                   !Task.isCancelled,
+                   let image = NSImage(data: data) {
+                    self?.playlistArtwork[item.id] = image
+                }
+            }
+        }
     }
 
     private func removeEndObserver() {
@@ -389,6 +474,16 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         return result
     }
 
+    private nonisolated static func readArtwork(from url: URL) async -> Data? {
+        let asset = AVURLAsset(url: url)
+        guard let entries = try? await asset.load(.commonMetadata) else { return nil }
+        for entry in entries where entry.commonKey == .commonKeyArtwork {
+            if Task.isCancelled { return nil }
+            if let data = try? await entry.load(.dataValue) { return data }
+        }
+        return nil
+    }
+
     private func haltPlayback() {
         removeEndObserver()
         player.pause()
@@ -403,66 +498,27 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     }
 
     func closePlaylist() {
-        detachPlayer()
+        playlistArtworkTask?.cancel()
+        playlistArtworkTask = nil
         if isPlayingPlaylist {
             stopPlayback()
+            playerContentView?.removeFromSuperview()
             panel?.orderOut(nil)
+        } else if playerContentView?.superview === playlistPlayerHost {
+            // Remove only the embedded idle presentation. A single file that is
+            // playing in its own panel must survive closing the playlist window.
+            playerContentView?.removeFromSuperview()
         }
         items = []
         playOrder = []
         rootURL = nil
+        rootURLs = []
+        playlistArtwork = [:]
         selectedID = nil
     }
 
     func windowWillClose(_ notification: Notification) {
-        detachPlayer()
         stopPlayback()
-    }
-
-    func setPlaylistWindow(_ window: NSWindow) {
-        playlistWindow = window
-        if isPlayingPlaylist { dockPlayerIfNeeded() }
-    }
-
-    private func detachPlayer() {
-        playlistDock?.invalidate()
-        playlistDock = nil
-        if let undockedPlayerMinSize { panel?.minSize = undockedPlayerMinSize }
-        undockedPlayerMinSize = nil
-    }
-
-    private func dockPlayerIfNeeded() {
-        guard isPlayingPlaylist, let playlistWindow, playlistWindow.isVisible,
-              let panel, !playlistWindow.styleMask.contains(.fullScreen) else { return }
-        if playlistDock?.partner(of: panel) === playlistWindow { return }
-        detachPlayer()
-        undockedPlayerMinSize = panel.minSize
-        panel.minSize = NSSize(
-            width: panel.minSize.width,
-            height: max(panel.minSize.height, playlistWindow.minSize.height)
-        )
-
-        let width = panel.frame.width
-        let screen = playlistWindow.screen?.visibleFrame
-        var playlistFrame = playlistWindow.frame
-        // Prefer the right edge; use the left edge if that is the available space.
-        let useLeft = screen.map {
-            playlistFrame.maxX + width > $0.maxX && playlistFrame.minX - width >= $0.minX
-        } ?? false
-        if !useLeft, let screen, playlistFrame.maxX + width > screen.maxX {
-            playlistFrame.origin.x = max(screen.minX, screen.maxX - playlistFrame.width - width)
-            playlistWindow.setFrame(playlistFrame, display: true)
-        }
-        panel.setFrame(NSRect(
-            x: useLeft ? playlistFrame.minX - width : playlistFrame.maxX,
-            y: playlistFrame.minY, width: width, height: playlistFrame.height
-        ), display: true)
-        playlistDock = DockedPair(
-            left: useLeft ? panel : playlistWindow,
-            right: useLeft ? playlistWindow : panel
-        ) { [weak self] in
-            self?.detachPlayer()
-        }
     }
 }
 
@@ -1116,25 +1172,44 @@ final class BrowserViewModel: ObservableObject {
 
     func playCurrentFolderPlaylist(openPlaylist: @escaping () -> Void) {
         guard !isBuildingPlaylist else { return }
-        let root = selectedItem.flatMap { $0.canNavigateInto ? $0.url : nil } ?? currentURL
+        let selectedFolders = selectedItems
+            .filter(\.canNavigateInto)
+            .map { $0.url.standardizedFileURL }
+            .sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+        let roots = selectedFolders.isEmpty
+            ? [currentURL]
+            : selectedFolders.filter { candidate in
+                !selectedFolders.contains { possibleParent in
+                    possibleParent != candidate
+                        && candidate.path.hasPrefix(
+                            possibleParent.path.hasSuffix("/")
+                                ? possibleParent.path
+                                : possibleParent.path + "/"
+                        )
+                }
+            }
         let includesHiddenFiles = showHiddenFiles
         isBuildingPlaylist = true
         Task {
             defer { isBuildingPlaylist = false }
             do {
                 let playlistItems = try await Task.detached(priority: .userInitiated) {
-                    try FileSystemService().mp3PlaylistItems(
-                        in: root,
-                        showHiddenFiles: includesHiddenFiles
-                    )
+                    let service = FileSystemService()
+                    var seen = Set<URL>()
+                    return try roots.flatMap { root in
+                        try service.mp3PlaylistItems(
+                            in: root,
+                            showHiddenFiles: includesHiddenFiles
+                        )
+                    }.filter { seen.insert($0.id).inserted }
                 }.value
                 guard !playlistItems.isEmpty else {
                     errorMessage = language == .german
-                        ? "In diesem Ordner und seinen Unterordnern wurden keine MP3-Dateien gefunden."
-                        : "No MP3 files were found in this folder or its subfolders."
+                        ? "In den gewählten Ordnern und ihren Unterordnern wurden keine MP3-Dateien gefunden."
+                        : "No MP3 files were found in the selected folders or their subfolders."
                     return
                 }
-                PlaylistPlayerController.shared.setPlaylist(playlistItems, root: root, language: language)
+                PlaylistPlayerController.shared.setPlaylist(playlistItems, roots: roots, language: language)
                 openPlaylist()
             } catch is CancellationError {
                 return

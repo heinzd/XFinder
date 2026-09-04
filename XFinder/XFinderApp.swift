@@ -513,9 +513,9 @@ Known limitation: At narrow window widths, the native controls hide the timeline
 
 ## Creating a playlist from a folder
 
-Select exactly one folder and click the playlist toolbar button with the music-list symbol. XFinder collects MP3 files from that folder and its subfolders. If no single navigable folder is selected, the current folder is used instead.
+Select one or more folders and click the playlist toolbar button with the music-list symbol. XFinder collects MP3 files only from those folders and their subfolders. If no folder is selected, the current folder is used instead. A selected parent folder already includes selected folders below it, so tracks are not duplicated.
 
-The playlist opens in its own table window with Name, Album / Folder, and Size columns. It is temporary and read-only. Clicking a track starts it; opening the list alone does not start playback. The player docks beside the playlist, matches its height, and moves with it. Playing a single file from the file list detaches the player.
+The playlist opens in its own window. Its read-only table is on the left and the complete player with artwork, metadata, playback controls, and timeline is integrated on the right. Embedded cover artwork is also loaded asynchronously into the Name column; tracks without artwork show a music-note placeholder. Clicking a track starts it; opening the list alone does not start playback. Playing an MP3 from the regular file view continues to use a separate player window.
 
 Folders form album groups. Files are collected breadth-first: tracks directly in the root folder first, then tracks in its immediate subfolders, then the next level. Tracks within each folder use natural file-name order, such as Track 2 before Track 10. Album / Folder shows the folder path, not the MP3 album metadata field.
 
@@ -641,9 +641,9 @@ Bekannte Einschränkung: Bei schmalem Playerfenster blendet die native Steuerung
 
 ## Playlist aus einem Ordner
 
-Markiere genau einen Ordner und klicke auf den Playlist-Button mit dem Notenlisten-Symbol. XFinder sammelt die MP3-Dateien dieses Ordners und seiner Unterordner. Ist kein einzelner navigierbarer Ordner ausgewählt, dient der aktuell geöffnete Ordner als Quelle.
+Markiere einen oder mehrere Ordner und klicke auf den Playlist-Button mit dem Notenlisten-Symbol. XFinder sammelt MP3-Dateien ausschließlich aus diesen Ordnern und ihren Unterordnern. Ist kein Ordner ausgewählt, dient der aktuell geöffnete Ordner als Quelle. Ein ausgewählter übergeordneter Ordner schließt darunter ebenfalls ausgewählte Ordner bereits ein, sodass Titel nicht doppelt erscheinen.
 
-Die Playlist erscheint als eigenes Tabellenfenster mit Name, Album/Ordner und Größe. Sie ist temporär und nicht bearbeitbar. Ein Klick auf einen Titel startet ihn; das Öffnen der Liste allein startet noch keine Wiedergabe. Der Player dockt seitlich an die Playlist an, übernimmt ihre Höhe und bewegt sich mit ihr. Einzelwiedergabe aus der Dateiliste löst diese Kopplung.
+Die Playlist erscheint in einem eigenen Fenster. Links steht die schreibgeschützte Tabelle, rechts ist der vollständige Player mit Cover, Metadaten, Wiedergabesteuerung und Zeitleiste integriert. Eingebettete Cover werden außerdem asynchron in die Namensspalte geladen; Titel ohne Cover zeigen ein Notensymbol. Ein Klick auf einen Titel startet ihn; das Öffnen der Liste allein startet noch keine Wiedergabe. MP3-Dateien aus der normalen Dateiansicht verwenden weiterhin ein separates Playerfenster.
 
 Ordner bilden Albumblöcke. XFinder sammelt nach dem Prinzip der Breitensuche: zuerst Titel direkt im Ausgangsordner, dann die Titel seiner unmittelbaren Unterordner, danach die nächste Ebene. Innerhalb eines Ordners gilt die natürliche Dateinamensortierung, etwa Titel 2 vor Titel 10. Die Spalte „Album / Ordner“ bezeichnet den Dateipfad, nicht das Albumfeld der MP3-Metadaten.
 
