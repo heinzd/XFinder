@@ -20,8 +20,18 @@ struct SidebarView: View {
             }
 
             Section(model.text("Locations")) {
-                ForEach(model.locations) { location in
+                ForEach(ungroupedLocations) { location in
                     SidebarRow(location: location)
+                }
+
+                ForEach(networkServers, id: \.name) { server in
+                    DisclosureGroup {
+                        ForEach(server.shares) { location in
+                            SidebarRow(location: location)
+                        }
+                    } label: {
+                        Label(server.name, systemImage: "network")
+                    }
                 }
             }
         }
@@ -48,6 +58,22 @@ struct SidebarView: View {
             }
             .padding(10)
         }
+    }
+
+    private var ungroupedLocations: [SidebarLocation] {
+        model.locations.filter { $0.networkServer == nil }
+    }
+
+    private var networkServers: [(name: String, shares: [SidebarLocation])] {
+        Dictionary(grouping: model.locations.compactMap { location in
+            location.networkServer.map { ($0, location) }
+        }, by: { $0.0 })
+        .map { name, entries in
+            (name: name, shares: entries.map(\.1).sorted {
+                $0.title.localizedStandardCompare($1.title) == .orderedAscending
+            })
+        }
+        .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 }
 

@@ -138,6 +138,7 @@ struct FileSystemService {
             .volumeIsInternalKey,
             .volumeIsRemovableKey,
             .volumeIsEjectableKey,
+            .volumeURLForRemountingKey,
             .isDirectoryKey
         ]
         var urls = fileManager.mountedVolumeURLs(
@@ -162,10 +163,11 @@ struct FileSystemService {
             guard standardizedURL.path.hasPrefix("/Volumes/") else { return nil }
             let values = try? standardizedURL.resourceValues(forKeys: keys)
             guard values?.isDirectory == true else { return nil }
-            // A mounted network share is authoritative even if macOS reports a
-            // contradictory or unavailable volumeIsInternal value for its URL.
-            // For local volumes, continue excluding explicitly internal storage.
-            let isNetworkVolume = values?.volumeIsLocal == false
+            // The remount URL is the authoritative network-volume signal and also
+            // carries the SMB/AFP/NFS server name. Some providers report conflicting
+            // volumeIsLocal/volumeIsInternal values for the mounted path.
+            let remountURL = values?.volumeURLForRemounting
+            let isNetworkVolume = remountURL != nil || values?.volumeIsLocal == false
             guard isNetworkVolume || values?.volumeIsInternal != true else { return nil }
             let systemImage: String
             if isNetworkVolume {
@@ -178,10 +180,22 @@ struct FileSystemService {
             return SidebarLocation(
                 title: values?.volumeLocalizedName ?? standardizedURL.lastPathComponent,
                 systemImage: systemImage,
-                url: standardizedURL
+                url: standardizedURL,
+                networkServer: isNetworkVolume ? networkServerName(from: remountURL) : nil
             )
         }
         .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+    }
+
+    private func networkServerName(from remountURL: URL?) -> String? {
+        guard var host = remountURL?.host, !host.isEmpty else { return nil }
+        // Bonjour SMB hosts commonly look like DiskStation._smb._tcp.local.
+        if let serviceMarker = host.range(of: "._") {
+            host = String(host[..<serviceMarker.lowerBound])
+        } else if host.lowercased().hasSuffix(".local") {
+            host.removeLast(".local".count)
+        }
+        return host.removingPercentEncoding ?? host
     }
 
     func finderFavoriteURLs() -> [URL] {

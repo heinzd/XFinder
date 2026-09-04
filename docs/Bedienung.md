@@ -99,7 +99,7 @@ Am Dateiende startet automatisch der nächste Titel. Nach dem letzten Titel der 
 
 Die Seitenleiste unterscheidet Standardfavoriten, importierte Finder-Favoriten und eigene XFinder-Favoriten. Ausgewählte Ordner kannst du über „Zu Favoriten hinzufügen“ im Kontextmenü dauerhaft aufnehmen.
 
-Unter „Orte“ erscheinen unter anderem iCloud Drive, Papierkorb, AirDrop sowie externe Laufwerke und Netzwerkvolumes. Interne und virtuelle Systemvolumes werden ausgeblendet.
+Unter „Orte“ erscheinen unter anderem iCloud Drive, Papierkorb, AirDrop sowie externe Laufwerke und Netzwerkvolumes. Gemountete Netzwerkfreigaben werden unter ihrem Server gruppiert, beispielsweise `DiskStation` → `dcon`. Interne und virtuelle Systemvolumes werden ausgeblendet.
 
 Angeschlossene iPhones werden über Apples Mediengeräteschnittstelle erkannt. Entsperre das Gerät und bestätige das Vertrauen zu diesem Mac. Ein Klick öffnet „Digitale Bilder“; das iPhone wird nicht als frei zugängliches Dateisystem eingebunden.
 

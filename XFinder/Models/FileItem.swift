@@ -119,6 +119,7 @@ struct SidebarLocation: Identifiable, Hashable, Sendable {
     let url: URL
     var isCustom = false
     var opensExternally = false
+    var networkServer: String? = nil
 
     var id: URL { url.isFileURL ? url.standardizedFileURL : url }
 }

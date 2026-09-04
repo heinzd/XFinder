@@ -540,7 +540,7 @@ At the end of a file, the next track starts automatically. Playback ends after t
 
 The sidebar distinguishes standard favorites, imported Finder favorites, and custom XFinder favorites. Add selected folders permanently using Add to Favorites in the context menu.
 
-Locations include iCloud Drive, Trash, AirDrop, external drives, and network volumes. Internal and virtual system volumes are excluded.
+Locations include iCloud Drive, Trash, AirDrop, external drives, and network volumes. Mounted network shares are grouped below their server, for example `DiskStation` → `dcon`. Internal and virtual system volumes are excluded.
 
 Connected iPhones are detected through Apple's media-device interface. Unlock the device and confirm that it trusts this Mac. Clicking it opens Image Capture; the iPhone is not mounted as a freely accessible file system.
 
@@ -668,7 +668,7 @@ Am Dateiende startet automatisch der nächste Titel. Nach dem letzten Titel der 
 
 Die Seitenleiste unterscheidet Standardfavoriten, importierte Finder-Favoriten und eigene XFinder-Favoriten. Ausgewählte Ordner kannst du über „Zu Favoriten hinzufügen“ im Kontextmenü dauerhaft aufnehmen.
 
-Unter „Orte“ erscheinen unter anderem iCloud Drive, Papierkorb, AirDrop sowie externe Laufwerke und Netzwerkvolumes. Interne und virtuelle Systemvolumes werden ausgeblendet.
+Unter „Orte“ erscheinen unter anderem iCloud Drive, Papierkorb, AirDrop sowie externe Laufwerke und Netzwerkvolumes. Gemountete Netzwerkfreigaben werden unter ihrem Server gruppiert, beispielsweise `DiskStation` → `dcon`. Interne und virtuelle Systemvolumes werden ausgeblendet.
 
 Angeschlossene iPhones werden über Apples Mediengeräteschnittstelle erkannt. Entsperre das Gerät und bestätige das Vertrauen zu diesem Mac. Ein Klick öffnet „Digitale Bilder“; das iPhone wird nicht als frei zugängliches Dateisystem eingebunden.
 

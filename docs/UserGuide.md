@@ -99,7 +99,7 @@ At the end of a file, the next track starts automatically. Playback ends after t
 
 The sidebar distinguishes standard favorites, imported Finder favorites, and custom XFinder favorites. Add selected folders permanently using Add to Favorites in the context menu.
 
-Locations include iCloud Drive, Trash, AirDrop, external drives, and network volumes. Internal and virtual system volumes are excluded.
+Locations include iCloud Drive, Trash, AirDrop, external drives, and network volumes. Mounted network shares are grouped below their server, for example `DiskStation` → `dcon`. Internal and virtual system volumes are excluded.
 
 Connected iPhones are detected through Apple's media-device interface. Unlock the device and confirm that it trusts this Mac. Clicking it opens Image Capture; the iPhone is not mounted as a freely accessible file system.
 
