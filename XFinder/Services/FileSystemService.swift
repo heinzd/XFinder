@@ -162,12 +162,13 @@ struct FileSystemService {
             guard standardizedURL.path.hasPrefix("/Volumes/") else { return nil }
             let values = try? standardizedURL.resourceValues(forKeys: keys)
             guard values?.isDirectory == true else { return nil }
-            // Network file systems don't consistently provide volumeIsInternal.
-            // Exclude only volumes that macOS explicitly identifies as internal;
-            // treating an unavailable value as internal hides mounted SMB/AFP shares.
-            guard values?.volumeIsInternal != true else { return nil }
+            // A mounted network share is authoritative even if macOS reports a
+            // contradictory or unavailable volumeIsInternal value for its URL.
+            // For local volumes, continue excluding explicitly internal storage.
+            let isNetworkVolume = values?.volumeIsLocal == false
+            guard isNetworkVolume || values?.volumeIsInternal != true else { return nil }
             let systemImage: String
-            if values?.volumeIsLocal == false {
+            if isNetworkVolume {
                 systemImage = "network"
             } else if values?.volumeIsRemovable == true || values?.volumeIsEjectable == true {
                 systemImage = "externaldrive"
