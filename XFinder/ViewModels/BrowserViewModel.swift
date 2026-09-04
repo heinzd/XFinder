@@ -129,6 +129,9 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     @Published private(set) var isRandom: Bool {
         didSet { UserDefaults.standard.set(isRandom, forKey: Self.randomOrderKey) }
     }
+    @Published private(set) var isEndless: Bool {
+        didSet { UserDefaults.standard.set(isEndless, forKey: Self.endlessPlaybackKey) }
+    }
 
     private let player = AVPlayer()
     private let playerView = AVPlayerView()
@@ -149,9 +152,11 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     private var playbackObservation: NSKeyValueObservation?
     private var activePlaybackID: UUID?
     private static let randomOrderKey = "playlistUsesRandomOrder"
+    private static let endlessPlaybackKey = "playlistUsesEndlessPlayback"
 
     private override init() {
         isRandom = UserDefaults.standard.bool(forKey: Self.randomOrderKey)
+        isEndless = UserDefaults.standard.bool(forKey: Self.endlessPlaybackKey)
         super.init()
         playbackObservation = player.observe(\.timeControlStatus, options: [.initial, .new]) { [weak self] _, _ in
             // Read the current state on the main actor; do not transfer KVO values.
@@ -258,6 +263,10 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         currentIndex = current.flatMap { playOrder.firstIndex(of: $0) } ?? 0
     }
 
+    func toggleEndless() {
+        isEndless.toggle()
+    }
+
     func playSingle(_ url: URL, language: AppLanguage) {
         isPlayingPlaylist = false
         selectedID = nil
@@ -292,6 +301,8 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
                       self.activePlaybackID == playbackID else { return }
                 if self.canGoForward {
                     self.play(self.playOrder[self.currentIndex + 1], revealPlayer: false)
+                } else if self.isEndless, let first = self.playOrder.first {
+                    self.play(first, revealPlayer: false)
                 }
             }
         }

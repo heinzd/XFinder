@@ -90,10 +90,11 @@ Die Fensterleiste enthält von links nach rechts die folgenden Aktionen:
 - Vor: Spielt den nächsten Titel der aktuellen Abspielreihenfolge.
 - Ende: Spielt den letzten Titel der sichtbaren Liste.
 - Zufall/Reihenfolge: Wechselt zwischen zufälliger und serieller Wiedergabe. Die Einstellung bleibt nach einem Neustart gespeichert.
+- Endlos: Beginnt nach dem letzten Titel wieder am Anfang. Auch diese Einstellung bleibt nach einem Neustart gespeichert.
 
 Die sichtbare Liste behält ihre Albumblöcke auch im Zufallsmodus. Beim Umschalten bleibt der laufende Titel erhalten. Anfang und Ende beziehen sich weiterhin auf die sichtbare Liste; Vor und Zurück folgen der Abspielreihenfolge.
 
-Am Dateiende startet automatisch der nächste Titel. Nach dem letzten Titel der Abspielreihenfolge endet die Wiedergabe. Automatische Titelwechsel holen den Player nicht nach vorn. Das Schließen der Playlist verwirft die temporäre Liste und stoppt ihre Wiedergabe. Ein erneuter Klick auf den Playlist-Button erstellt die Liste neu aus dem gewählten Ordner.
+Am Dateiende startet automatisch der nächste Titel; die zugehörige Tabellenzeile wird auch im Zufallsmodus in den sichtbaren Bereich bewegt. Nach dem letzten Titel endet die Wiedergabe, sofern „Endlos“ nicht aktiv ist. Im Endlosmodus beginnt sie wieder am Anfang der aktuellen Abspielreihenfolge. Das Schließen der Playlist verwirft die temporäre Liste und stoppt ihre Wiedergabe. Ein erneuter Klick auf den Playlist-Button erstellt die Liste neu aus dem gewählten Ordner.
 
 ## Favoriten, Orte und Zugriffsrechte
 

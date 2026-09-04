@@ -219,10 +219,10 @@ struct PlaylistView: View {
     var body: some View {
         HSplitView {
             VStack(spacing: 0) {
-                Table(player.items, selection: selection) {
-                    TableColumn(player.text("Name", "Name")) { item in
-                        HStack(spacing: 8) {
-                            ZStack(alignment: .bottomTrailing) {
+                ScrollViewReader { proxy in
+                    Table(player.items, selection: selection) {
+                        TableColumn(player.text("Name", "Name")) { item in
+                            HStack(spacing: 8) {
                                 if let cover = player.playlistArtwork[item.id] {
                                     Image(nsImage: cover)
                                         .resizable()
@@ -236,40 +236,40 @@ struct PlaylistView: View {
                                         .background(Color.secondary.opacity(0.12))
                                         .cornerRadius(3)
                                 }
-                                if player.selectedID == item.id {
-                                    Image(systemName: "speaker.wave.2.fill")
-                                        .font(.system(size: 9))
-                                        .padding(3)
-                                        .background(.regularMaterial, in: Circle())
-                                }
+                                Text(item.name)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
                             }
-                            Text(item.name)
+                        }
+                        .width(min: 200, ideal: 330)
+
+                        TableColumn(player.text("Album / Folder", "Album / Ordner")) { item in
+                            Text(player.album(for: item))
+                                .foregroundStyle(.secondary)
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                         }
-                    }
-                    .width(min: 200, ideal: 330)
+                        .width(min: 130, ideal: 230)
 
-                    TableColumn(player.text("Album / Folder", "Album / Ordner")) { item in
-                        Text(player.album(for: item))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                        TableColumn(player.text("Size", "Größe")) { item in
+                            Text(item.formattedSize)
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                        }
+                        .width(min: 70, ideal: 90, max: 120)
                     }
-                    .width(min: 130, ideal: 230)
-
-                    TableColumn(player.text("Size", "Größe")) { item in
-                        Text(item.formattedSize)
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    .font(.body)
+                    .controlSize(.mini)
+                    .environment(\.defaultMinListRowHeight, 38)
+                    .tableStyle(.inset(alternatesRowBackgrounds: true))
+                    .onChange(of: player.selectedID) { _, selectedID in
+                        guard let selectedID else { return }
+                        DispatchQueue.main.async {
+                            proxy.scrollTo(selectedID, anchor: .center)
+                        }
                     }
-                    .width(min: 70, ideal: 90, max: 120)
                 }
-                .font(.body)
-                .controlSize(.mini)
-                .environment(\.defaultMinListRowHeight, 38)
-                .tableStyle(.inset(alternatesRowBackgrounds: true))
 
                 Divider()
                 HStack {
@@ -333,6 +333,17 @@ struct PlaylistView: View {
                 .help(player.isRandom
                     ? player.text("Random playback — switch to in order", "Zufällige Wiedergabe – auf Reihenfolge umschalten")
                     : player.text("Playback in order — switch to random", "Wiedergabe in Reihenfolge – auf Zufall umschalten"))
+
+                Button(action: player.toggleEndless) {
+                    Label(
+                        player.text("Endless", "Endlos"),
+                        systemImage: player.isEndless ? "repeat.circle.fill" : "repeat"
+                    )
+                }
+                .help(player.isEndless
+                    ? player.text("Endless playback on", "Endloswiedergabe aktiv")
+                    : player.text("Endless playback off", "Endloswiedergabe inaktiv"))
+                .disabled(player.items.isEmpty)
             }
         }
         .onDisappear { player.closePlaylist() }

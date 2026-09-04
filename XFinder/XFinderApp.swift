@@ -531,10 +531,11 @@ The toolbar offers these actions from left to right:
 - Next: Plays the next track in the current playback order.
 - End: Plays the last track in the visible list.
 - Random/In Order: Switches between random and sequential playback. This setting persists after restarting the app.
+- Endless: Repeats the playlist after the last track. This setting also persists after restarting the app.
 
 The visible list keeps its album groups even in random mode. Switching modes retains the current track. Beginning and End still refer to the visible list; Previous and Next follow the playback order.
 
-At the end of a file, the next track starts automatically. Playback ends after the last track in the playback order. Automatic track changes do not bring the player to the front. Closing the playlist discards the temporary list and stops its playback. Clicking the playlist button again rebuilds the list from the chosen folder.
+At the end of a file, the next track starts automatically and the corresponding table row is scrolled into view, including in random mode. Playback ends after the last track unless Endless is enabled; in Endless mode it continues at the beginning of the current playback order. Closing the playlist discards the temporary list and stops its playback. Clicking the playlist button again rebuilds the list from the chosen folder.
 
 ## Favorites, locations, and permissions
 
@@ -659,10 +660,11 @@ Die Fensterleiste enthält von links nach rechts die folgenden Aktionen:
 - Vor: Spielt den nächsten Titel der aktuellen Abspielreihenfolge.
 - Ende: Spielt den letzten Titel der sichtbaren Liste.
 - Zufall/Reihenfolge: Wechselt zwischen zufälliger und serieller Wiedergabe. Die Einstellung bleibt nach einem Neustart gespeichert.
+- Endlos: Beginnt nach dem letzten Titel wieder am Anfang. Auch diese Einstellung bleibt nach einem Neustart gespeichert.
 
 Die sichtbare Liste behält ihre Albumblöcke auch im Zufallsmodus. Beim Umschalten bleibt der laufende Titel erhalten. Anfang und Ende beziehen sich weiterhin auf die sichtbare Liste; Vor und Zurück folgen der Abspielreihenfolge.
 
-Am Dateiende startet automatisch der nächste Titel. Nach dem letzten Titel der Abspielreihenfolge endet die Wiedergabe. Automatische Titelwechsel holen den Player nicht nach vorn. Das Schließen der Playlist verwirft die temporäre Liste und stoppt ihre Wiedergabe. Ein erneuter Klick auf den Playlist-Button erstellt die Liste neu aus dem gewählten Ordner.
+Am Dateiende startet automatisch der nächste Titel; die zugehörige Tabellenzeile wird auch im Zufallsmodus in den sichtbaren Bereich bewegt. Nach dem letzten Titel endet die Wiedergabe, sofern „Endlos“ nicht aktiv ist. Im Endlosmodus beginnt sie wieder am Anfang der aktuellen Abspielreihenfolge. Das Schließen der Playlist verwirft die temporäre Liste und stoppt ihre Wiedergabe. Ein erneuter Klick auf den Playlist-Button erstellt die Liste neu aus dem gewählten Ordner.
 
 ## Favoriten, Orte und Zugriffsrechte
 
