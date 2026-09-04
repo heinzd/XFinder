@@ -60,8 +60,7 @@ struct ContentView: View {
                 .environmentObject(model)
         }
         .sheet(isPresented: $model.isShowingSettings) {
-            SettingsSheet()
-                .environmentObject(model)
+            SettingsSheet(model: model)
         }
         .onChange(of: searchText) { _, query in
             model.searchRecursively(matching: query)
@@ -393,9 +392,16 @@ private struct RenameSheet: View {
     }
 }
 
+@MainActor
 private struct SettingsSheet: View {
-    @EnvironmentObject private var model: BrowserViewModel
+    @ObservedObject private var model: BrowserViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedLanguage: AppLanguage
+
+    init(model: BrowserViewModel) {
+        self.model = model
+        _selectedLanguage = State(initialValue: model.language)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -411,7 +417,7 @@ private struct SettingsSheet: View {
                 Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 14) {
                     GridRow {
                         Text(model.text("Language"))
-                        Picker("", selection: $model.language) {
+                        Picker("", selection: $selectedLanguage) {
                             ForEach(AppLanguage.allCases) { language in
                                 Text(language.displayName).tag(language)
                             }
@@ -419,6 +425,13 @@ private struct SettingsSheet: View {
                         .labelsHidden()
                         .pickerStyle(.segmented)
                         .frame(width: 220)
+                        .onChange(of: selectedLanguage) { _, newLanguage in
+                            // Let the segmented control finish its view update before
+                            // publishing the language through BrowserViewModel.
+                            DispatchQueue.main.async {
+                                model.language = newLanguage
+                            }
+                        }
                     }
 
                     GridRow {
