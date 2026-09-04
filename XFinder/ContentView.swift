@@ -263,10 +263,10 @@ struct PlaylistView: View {
                     .controlSize(.mini)
                     .environment(\.defaultMinListRowHeight, 38)
                     .tableStyle(.inset(alternatesRowBackgrounds: true))
-                    .onChange(of: player.selectedID) { _, selectedID in
-                        guard let selectedID else { return }
+                    .onChange(of: player.automaticScrollRequest) { _, requestedID in
+                        guard let requestedID else { return }
                         DispatchQueue.main.async {
-                            proxy.scrollTo(selectedID, anchor: .center)
+                            proxy.scrollTo(requestedID, anchor: .center)
                         }
                     }
                 }

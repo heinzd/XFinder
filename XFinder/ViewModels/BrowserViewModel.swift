@@ -121,6 +121,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
 
     @Published private(set) var items: [FileItem] = []
     @Published private(set) var selectedID: URL?
+    @Published private(set) var automaticScrollRequest: URL?
     @Published private(set) var isPlaybackActive = false
     @Published private(set) var rootURL: URL?
     @Published private(set) var rootURLs: [URL] = []
@@ -232,11 +233,20 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         }
     }
 
-    func play(_ id: URL, revealPlayer: Bool = true) {
+    func play(
+        _ id: URL,
+        revealPlayer: Bool = true,
+        scrollSelectionIntoView: Bool = false
+    ) {
         guard let index = playOrder.firstIndex(of: id) else { return }
         currentIndex = index
         isPlayingPlaylist = true
         selectedID = id
+        if scrollSelectionIntoView {
+            // Clear first so repeating a one-track playlist creates a new change.
+            automaticScrollRequest = nil
+            automaticScrollRequest = id
+        }
         showPlayer(id, language: language, revealPlayer: revealPlayer)
     }
 
@@ -300,9 +310,13 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
                 guard let self, self.isPlayingPlaylist,
                       self.activePlaybackID == playbackID else { return }
                 if self.canGoForward {
-                    self.play(self.playOrder[self.currentIndex + 1], revealPlayer: false)
+                    self.play(
+                        self.playOrder[self.currentIndex + 1],
+                        revealPlayer: false,
+                        scrollSelectionIntoView: true
+                    )
                 } else if self.isEndless, let first = self.playOrder.first {
-                    self.play(first, revealPlayer: false)
+                    self.play(first, revealPlayer: false, scrollSelectionIntoView: true)
                 }
             }
         }
@@ -526,6 +540,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         rootURLs = []
         playlistArtwork = [:]
         selectedID = nil
+        automaticScrollRequest = nil
     }
 
     func windowWillClose(_ notification: Notification) {

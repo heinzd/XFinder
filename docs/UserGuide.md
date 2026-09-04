@@ -94,7 +94,7 @@ The toolbar offers these actions from left to right:
 
 The visible list keeps its album groups even in random mode. Switching modes retains the current track. Beginning and End still refer to the visible list; Previous and Next follow the playback order.
 
-At the end of a file, the next track starts automatically and the corresponding table row is scrolled into view, including in random mode. Playback ends after the last track unless Endless is enabled; in Endless mode it continues at the beginning of the current playback order. Closing the playlist discards the temporary list and stops its playback. Clicking the playlist button again rebuilds the list from the chosen folder.
+At the end of a file, the next track starts automatically and the corresponding table row is scrolled into view, including in random mode. Manual track selection and toolbar navigation do not reposition the table. Playback ends after the last track unless Endless is enabled; in Endless mode it continues at the beginning of the current playback order. Closing the playlist discards the temporary list and stops its playback. Clicking the playlist button again rebuilds the list from the chosen folder.
 
 ## Favorites, locations, and permissions
 
