@@ -541,7 +541,7 @@ At the end of a file, the next track starts automatically and the corresponding 
 
 The sidebar distinguishes standard favorites, imported Finder favorites, and custom XFinder favorites. Add selected folders permanently using Add to Favorites in the context menu.
 
-Locations include iCloud Drive, Trash, AirDrop, external drives, and a Finder-style Network node. XFinder discovers SMB and AFP file servers on the local network even before a share is mounted. Expand Network to see servers such as `DiskStation`, `Syno`, or another Mac. Mounted shares are grouped below their server, for example `DiskStation` → `dcon`. Selecting an unmounted server opens the macOS connection dialog. Internal and virtual system volumes are excluded. Allow local-network access when macOS asks; otherwise discovery remains empty.
+Locations include iCloud Drive, Trash, AirDrop, external drives, and a Finder-style Network node. XFinder discovers SMB and AFP file servers on the local network even before a share is mounted. Expand Network to see available servers and other Macs. Mounted shares are grouped below their server. Selecting an unmounted server opens the macOS connection dialog. Internal and virtual system volumes are excluded. Allow local-network access when macOS asks; otherwise discovery remains empty.
 
 Connected iPhones are detected through Apple's media-device interface. Unlock the device and confirm that it trusts this Mac. Clicking it opens Image Capture; the iPhone is not mounted as a freely accessible file system.
 
@@ -670,7 +670,7 @@ Am Dateiende startet automatisch der nächste Titel; die zugehörige Tabellenzei
 
 Die Seitenleiste unterscheidet Standardfavoriten, importierte Finder-Favoriten und eigene XFinder-Favoriten. Ausgewählte Ordner kannst du über „Zu Favoriten hinzufügen“ im Kontextmenü dauerhaft aufnehmen.
 
-Unter „Orte“ erscheinen unter anderem iCloud Drive, Papierkorb, AirDrop, externe Laufwerke und ein Finder-ähnlicher Knoten „Netzwerk“. XFinder erkennt SMB- und AFP-Dateiserver im lokalen Netz bereits, bevor eine Freigabe gemountet ist. Klappe „Netzwerk“ auf, um Server wie `DiskStation`, `Syno` oder einen weiteren Mac zu sehen. Gemountete Freigaben werden unter ihrem Server gruppiert, beispielsweise `DiskStation` → `dcon`. Die Auswahl eines noch nicht verbundenen Servers öffnet den macOS-Verbindungsdialog. Interne und virtuelle Systemvolumes werden ausgeblendet. Erlaube den Zugriff auf das lokale Netzwerk, wenn macOS danach fragt; andernfalls bleibt die Erkennung leer.
+Unter „Orte“ erscheinen unter anderem iCloud Drive, Papierkorb, AirDrop, externe Laufwerke und ein Finder-ähnlicher Knoten „Netzwerk“. XFinder erkennt SMB- und AFP-Dateiserver im lokalen Netz bereits, bevor eine Freigabe gemountet ist. Klappe „Netzwerk“ auf, um verfügbare Server und weitere Macs zu sehen. Gemountete Freigaben werden unter ihrem jeweiligen Server gruppiert. Die Auswahl eines noch nicht verbundenen Servers öffnet den macOS-Verbindungsdialog. Interne und virtuelle Systemvolumes werden ausgeblendet. Erlaube den Zugriff auf das lokale Netzwerk, wenn macOS danach fragt; andernfalls bleibt die Erkennung leer.
 
 Angeschlossene iPhones werden über Apples Mediengeräteschnittstelle erkannt. Entsperre das Gerät und bestätige das Vertrauen zu diesem Mac. Ein Klick öffnet „Digitale Bilder“; das iPhone wird nicht als frei zugängliches Dateisystem eingebunden.
 

@@ -273,7 +273,7 @@ struct FileSystemService {
 
     private func networkServerName(from remountURL: URL?) -> String? {
         guard var host = remountURL?.host, !host.isEmpty else { return nil }
-        // Bonjour SMB hosts commonly look like DiskStation._smb._tcp.local.
+        // Bonjour SMB host names commonly include the service suffix.
         if let serviceMarker = host.range(of: "._") {
             host = String(host[..<serviceMarker.lowerBound])
         } else if host.lowercased().hasSuffix(".local") {
