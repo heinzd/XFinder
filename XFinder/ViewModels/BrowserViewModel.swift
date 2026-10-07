@@ -108,13 +108,6 @@ private final class QuickLookController: NSObject, @preconcurrency QLPreviewPane
     }
 }
 
-private struct AudioFileMetadata: Sendable {
-    var artwork: Data?
-    var title: String?
-    var artist: String?
-    var album: String?
-}
-
 @MainActor
 final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelegate {
     static let shared = PlaylistPlayerController()
@@ -334,22 +327,22 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
             }
         }
         metadataTask = Task { @MainActor [weak self] in
-            let metadata = await Self.readAudioMetadata(from: url)
+            let metadata = await AudioMetadataReader.track(at: url)
             guard !Task.isCancelled, let self,
                   self.activePlaybackID == playbackID else { return }
             // Keep the previous presentation until the complete next snapshot is ready.
-            let artworkChanged = self.displayedArtworkData != metadata.artwork || self.artworkView.image == nil
-            let cover = artworkChanged ? metadata.artwork.flatMap { NSImage(data: $0) } : nil
+            let artworkChanged = self.displayedArtworkData != metadata.artworkData || self.artworkView.image == nil
+            let cover = artworkChanged ? metadata.artworkData.flatMap { NSImage(data: $0) } : nil
             NSAnimationContext.runAnimationGroup({ context in
                 context.duration = 0
                 context.allowsImplicitAnimation = false
                 self.panel?.title = url.lastPathComponent
-                self.trackLabel.stringValue = metadata.title ?? url.lastPathComponent
+                self.trackLabel.stringValue = metadata.title
                 self.trackLabel.toolTip = url.path
                 self.artistLabel.stringValue = metadata.artist ?? ""
                 self.albumLabel.stringValue = metadata.album ?? ""
                 if artworkChanged {
-                    self.displayedArtworkData = metadata.artwork
+                    self.displayedArtworkData = metadata.artworkData
                     self.artworkView.contentTintColor = cover == nil ? .secondaryLabelColor : nil
                     self.artworkView.image = cover ?? NSImage(
                         systemSymbolName: "music.note",
@@ -472,7 +465,8 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         playlistArtworkTask = Task { @MainActor [weak self] in
             for item in items {
                 guard !Task.isCancelled else { return }
-                if let data = await Self.readArtwork(from: item.url),
+                let track = await AudioMetadataReader.track(at: item.url)
+                if let data = track.artworkData,
                    !Task.isCancelled,
                    let image = NSImage(data: data) {
                     self?.playlistArtwork[item.id] = image
@@ -487,39 +481,6 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         activePlaybackID = nil
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
         endObserver = nil
-    }
-
-    private nonisolated static func readAudioMetadata(from url: URL) async -> AudioFileMetadata {
-        let asset = AVURLAsset(url: url)
-        guard let entries = try? await asset.load(.commonMetadata) else { return AudioFileMetadata() }
-        var result = AudioFileMetadata()
-        for entry in entries {
-            guard !Task.isCancelled else { return result }
-            guard let key = entry.commonKey else { continue }
-            switch key {
-            case .commonKeyArtwork:
-                if result.artwork == nil { result.artwork = try? await entry.load(.dataValue) }
-            case .commonKeyTitle:
-                if result.title == nil { result.title = try? await entry.load(.stringValue) }
-            case .commonKeyArtist:
-                if result.artist == nil { result.artist = try? await entry.load(.stringValue) }
-            case .commonKeyAlbumName:
-                if result.album == nil { result.album = try? await entry.load(.stringValue) }
-            default:
-                break
-            }
-        }
-        return result
-    }
-
-    private nonisolated static func readArtwork(from url: URL) async -> Data? {
-        let asset = AVURLAsset(url: url)
-        guard let entries = try? await asset.load(.commonMetadata) else { return nil }
-        for entry in entries where entry.commonKey == .commonKeyArtwork {
-            if Task.isCancelled { return nil }
-            if let data = try? await entry.load(.dataValue) { return data }
-        }
-        return nil
     }
 
     private func haltPlayback() {
