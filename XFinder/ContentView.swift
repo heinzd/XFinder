@@ -346,7 +346,9 @@ struct PlaylistView: View {
                 .disabled(player.items.isEmpty)
             }
         }
-        .onDisappear { player.closePlaylist() }
+        .background(BrowserWindowReader { window in
+            player.observePlaylistWindow(window)
+        })
     }
 }
 

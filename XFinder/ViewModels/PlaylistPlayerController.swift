@@ -34,6 +34,7 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
     private var panel: NSPanel?
     private var playerContentView: NSView?
     private weak var playlistPlayerHost: NSView?
+    private weak var playlistWindow: NSWindow?
     private var displayedArtworkData: Data?
     private var playOrder: [URL] = []
     private var currentIndex = 0
@@ -308,6 +309,36 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         panel?.orderOut(nil)
     }
 
+    func observePlaylistWindow(_ window: NSWindow) {
+        guard playlistWindow !== window else { return }
+        if let playlistWindow {
+            NotificationCenter.default.removeObserver(
+                self,
+                name: NSWindow.willCloseNotification,
+                object: playlistWindow
+            )
+        }
+        playlistWindow = window
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(playlistWindowWillClose(_:)),
+            name: NSWindow.willCloseNotification,
+            object: window
+        )
+    }
+
+    @objc private func playlistWindowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window === playlistWindow else { return }
+        closePlaylist()
+        NotificationCenter.default.removeObserver(
+            self,
+            name: NSWindow.willCloseNotification,
+            object: window
+        )
+        playlistWindow = nil
+    }
+
     func detachPlaylistPlayer(from host: NSView) {
         guard playlistPlayerHost === host else { return }
         playlistPlayerHost = nil
@@ -417,4 +448,3 @@ final class PlaylistPlayerController: NSObject, ObservableObject, NSWindowDelega
         stopPlayback()
     }
 }
-
