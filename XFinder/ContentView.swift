@@ -226,9 +226,9 @@ struct PlaylistView: View {
                                 if let cover = player.playlistArtwork[item.id] {
                                     Image(nsImage: cover)
                                         .resizable()
-                                        .scaledToFill()
+                                        .scaledToFit()
                                         .frame(width: 32, height: 32)
-                                        .clipped()
+                                        .background(Color.secondary.opacity(0.08))
                                         .cornerRadius(3)
                                 } else {
                                     Image(systemName: "music.note")
